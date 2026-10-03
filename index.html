@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Sensibilidad y Aislamiento</title>
+  <title>Nivelador de Carabina - Plano Longitudinal</title>
   <style>
     :root {
       --bg: #121212;
@@ -97,7 +97,7 @@
       border-radius: 50%;
     }
 
-    /* DIAL 2: Nivel Torpedo Horizontal (Elevación/Roll) */
+    /* DIAL 2: Nivel Torpedo Horizontal (Elevación/Pitch del Cañón) */
     .torpedo-level {
       width: 100%;
       height: 40px;
@@ -198,22 +198,22 @@
 
   <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 DIAGNÓSTICO (SENSOR FILTRADO)</div>
+    <div class="diag-title">🔍 MODO PLANO SOBRE MIRA</div>
     <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
     <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
 
   <!-- DIAL 1: BRÚJULA AZIMUT (180°) -->
   <div class="card">
-    <div class="gauge-title">1. Desviación Acimutal (Sentido del Cañón)</div>
+    <div class="gauge-title">1. Desviación Acimutal (Giro Plano)</div>
     <div class="compass-gauge">
       <div class="downrange-label">▲ DOWNRANGE (0°)</div>
       <div id="compass-needle" class="compass-needle"></div>
       <div class="compass-center"></div>
     </div>
 
-    <!-- DIAL 2: NIVEL TORPEDO -->
-    <div class="gauge-title" style="margin-top: 14px;">2. Inclinación / Elevación (Nivel Torpedo)</div>
+    <!-- DIAL 2: NIVEL TORPEDO (ELEVACIÓN LONGITUDINAL DEL CAÑÓN) -->
+    <div class="gauge-title" style="margin-top: 14px;">2. Inclinación del Cañón (Longitudinal)</div>
     <div class="torpedo-level">
       <div class="torpedo-center-ring"></div>
       <div id="torpedo-bubble" class="torpedo-bubble"></div>
@@ -222,12 +222,12 @@
     <!-- PUNTEROS Y SÍMBOLOS -->
     <div class="pointer-display">
       <div class="pointer-box">
-        <div style="font-size:0.7rem; color:var(--subtext);">CANTEO/ELEV.</div>
-        <div id="sym-roll" class="pointer-symbol">✓</div>
-        <div id="val-roll" class="pointer-value in-range">0.0°</div>
+        <div style="font-size:0.7rem; color:var(--subtext);">ELEV. CAÑÓN</div>
+        <div id="sym-pitch" class="pointer-symbol">✓</div>
+        <div id="val-pitch" class="pointer-value in-range">0.0°</div>
       </div>
       <div class="pointer-box">
-        <div style="font-size:0.7rem; color:var(--subtext);">ACIMUT/DOWNRANGE</div>
+        <div style="font-size:0.7rem; color:var(--subtext);">ACIMUT/GIRO</div>
         <div id="sym-azimuth" class="pointer-symbol">✓</div>
         <div id="val-azimuth" class="pointer-value in-range">0.0°</div>
       </div>
@@ -245,8 +245,8 @@
 
     <div class="input-col">
       <div class="input-row">
-        <label for="tol-roll-input">Tol. Elevación (± Grados):</label>
-        <input type="number" id="tol-roll-input" value="15.0" step="0.5" min="0.1" max="90">
+        <label for="tol-pitch-input">Tol. Elevación (± Grados):</label>
+        <input type="number" id="tol-pitch-input" value="15.0" step="0.5" min="0.1" max="90">
       </div>
       <div class="input-row">
         <label for="tol-azi-input">Tol. Acimut (± Grados):</label>
@@ -276,18 +276,18 @@
   let audioCtx = null;
   let audioEnabled = false;
 
-  let targetRoll = 0;
+  let targetPitch = 0;
   let targetAzimuth = 0;
-  let currentRoll = 0;
+  let currentPitch = 0;
   let currentAzimuth = 0;
 
-  let tolRoll = 15.0;
+  let tolPitch = 15.0;
   let tolAzi = 45.0;
 
   const compassNeedle = document.getElementById('compass-needle');
   const torpedoBubble = document.getElementById('torpedo-bubble');
-  const symRoll = document.getElementById('sym-roll');
-  const valRoll = document.getElementById('val-roll');
+  const symPitch = document.getElementById('sym-pitch');
+  const valPitch = document.getElementById('val-pitch');
   const symAzimuth = document.getElementById('sym-azimuth');
   const valAzimuth = document.getElementById('val-azimuth');
 
@@ -297,7 +297,7 @@
   const btnLogShot = document.getElementById('btn-log-shot');
   const btnCopyLog = document.getElementById('btn-copy-log');
   const btnClearLog = document.getElementById('btn-clear-log');
-  const tolRollInput = document.getElementById('tol-roll-input');
+  const tolPitchInput = document.getElementById('tol-pitch-input');
   const tolAziInput = document.getElementById('tol-azi-input');
   const logList = document.getElementById('log-list');
 
@@ -319,60 +319,53 @@
     document.getElementById('diag-count').innerText = eventCount;
 
     let alpha = e.alpha || 0;
-    let beta = e.beta || 0;
+    let beta = e.beta || 0; // Elevación longitudinal del cañón con cel. plano
     let gamma = e.gamma || 0;
 
-    currentRoll = gamma;
+    // Con el celular plano sobre la mira:
+    // Beta mide la inclinación longitudinal del cañón (pitch)
+    currentPitch = beta;
 
-    // Aislamiento del vector de rumbo horizontal (Compensación de Canteo/Inclinación)
+    // Alpha/Brújula mide el giro de azimut sobre la mesa/plano
     if (e.webkitCompassHeading) {
       currentAzimuth = e.webkitCompassHeading;
     } else {
-      let _radA = alpha * (Math.PI / 180);
-      let _radB = beta * (Math.PI / 180);
-      let _radG = gamma * (Math.PI / 180);
-
-      let x = -Math.sin(_radA) * Math.cos(_radG) - Math.cos(_radA) * Math.sin(_radB) * Math.sin(_radG);
-      let y = Math.cos(_radA) * Math.cos(_radG) - Math.sin(_radA) * Math.sin(_radB) * Math.sin(_radG);
-
-      let heading = Math.atan2(x, y) * (180 / Math.PI);
-      if (heading < 0) heading += 360;
-      currentAzimuth = heading;
+      currentAzimuth = 360 - alpha;
     }
 
     updateUI();
   }
 
   function updateUI() {
-    tolRoll = parseFloat(tolRollInput.value) || 15.0;
+    tolPitch = parseFloat(tolPitchInput.value) || 15.0;
     tolAzi = parseFloat(tolAziInput.value) || 45.0;
 
-    let diffRoll = currentRoll - targetRoll;
+    let diffPitch = currentPitch - targetPitch;
     let diffAzimuth = (currentAzimuth - targetAzimuth + 540) % 360 - 180;
 
-    // 1. DIAL ACIMUT: Mapeo suave y escalado a la tolerancia configurada
-    let scaledAziAngle = (diffAzimuth / tolAzi) * 45; // 45° de aguja a límite de tolerancia
+    // 1. DIAL ACIMUT: Mapeo de rotación plana (-85° a +85°)
+    let scaledAziAngle = (diffAzimuth / tolAzi) * 45; 
     let clampAziAngle = Math.max(-85, Math.min(85, scaledAziAngle));
     compassNeedle.style.transform = `rotate(${clampAziAngle}deg)`;
 
-    // 2. DIAL TORPEDO: Mover Burbuja
-    let clampRollPos = Math.max(-140, Math.min(140, (diffRoll / tolRoll) * 50));
-    torpedoBubble.style.transform = `translateX(${clampRollPos}px)`;
+    // 2. DIAL TORPEDO: Mover burbuja según inclinación longitudinal (elevación cañón)
+    let clampPitchPos = Math.max(-140, Math.min(140, (diffPitch / tolPitch) * 50));
+    torpedoBubble.style.transform = `translateX(${clampPitchPos}px)`;
 
-    let isRollOk = Math.abs(diffRoll) <= tolRoll;
+    let isPitchOk = Math.abs(diffPitch) <= tolPitch;
     let isAziOk = Math.abs(diffAzimuth) <= tolAzi;
-    let isOverallOk = isRollOk && isAziOk;
+    let isOverallOk = isPitchOk && isAziOk;
 
     compassNeedle.style.background = isAziOk ? 'var(--primary)' : 'var(--danger)';
-    torpedoBubble.style.backgroundColor = isRollOk ? 'var(--primary)' : 'var(--danger)';
+    torpedoBubble.style.backgroundColor = isPitchOk ? 'var(--primary)' : 'var(--danger)';
 
-    let rollSym = isRollOk ? "✓" : (diffRoll > 0 ? "->" : "<-");
-    symRoll.innerText = rollSym;
-    symRoll.className = `pointer-symbol ${isRollOk ? 'in-range' : 'out-range'}`;
-    valRoll.innerText = `${Math.abs(diffRoll).toFixed(1)}° ${rollSym}`;
-    valRoll.className = `pointer-value ${isRollOk ? 'in-range' : 'out-range'}`;
+    let pitchSym = isPitchOk ? "✓" : (diffPitch > 0 ? "▲" : "▼");
+    symPitch.innerText = pitchSym;
+    symPitch.className = `pointer-symbol ${isPitchOk ? 'in-range' : 'out-range'}`;
+    valPitch.innerText = `${Math.abs(diffPitch).toFixed(1)}° ${pitchSym}`;
+    valPitch.className = `pointer-value ${isPitchOk ? 'in-range' : 'out-range'}`;
 
-    let aziSym = isAziOk ? "✓" : (diffAzimuth > 0 ? "v" : "^");
+    let aziSym = isAziOk ? "✓" : (diffAzimuth > 0 ? "->" : "<-");
     symAzimuth.innerText = aziSym;
     symAzimuth.className = `pointer-symbol ${isAziOk ? 'in-range' : 'out-range'}`;
     valAzimuth.innerText = `${Math.abs(diffAzimuth).toFixed(1)}° ${aziSym}`;
@@ -398,7 +391,7 @@
   }
 
   btnCalibrate.onclick = () => {
-    targetRoll = currentRoll;
+    targetPitch = currentPitch;
     targetAzimuth = currentAzimuth;
     if (navigator.vibrate) navigator.vibrate(100);
     addLog(`[CALIBRACIÓN] Downrange guardado`);
@@ -432,12 +425,12 @@
   }
 
   btnLogShot.onclick = () => {
-    let diffRoll = (currentRoll - targetRoll).toFixed(1);
+    let diffPitch = (currentPitch - targetPitch).toFixed(1);
     let diffAzimuth = ((currentAzimuth - targetAzimuth + 540) % 360 - 180).toFixed(1);
-    let rollSym = Math.abs(diffRoll) <= tolRoll ? "✓" : (diffRoll > 0 ? "->" : "<-");
-    let aziSym = Math.abs(diffAzimuth) <= tolAzi ? "✓" : (diffAzimuth > 0 ? "v" : "^");
+    let pitchSym = Math.abs(diffPitch) <= tolPitch ? "✓" : (diffPitch > 0 ? "▲" : "▼");
+    let aziSym = Math.abs(diffAzimuth) <= tolAzi ? "✓" : (diffAzimuth > 0 ? "->" : "<-");
 
-    addLog(`DISPARO: R: ${rollSym} ${Math.abs(diffRoll)}° | A: ${aziSym} ${Math.abs(diffAzimuth)}°`);
+    addLog(`DISPARO: Elev: ${pitchSym} ${Math.abs(diffPitch)}° | Azim: ${aziSym} ${Math.abs(diffAzimuth)}°`);
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   };
 
