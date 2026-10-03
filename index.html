@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - GitHub Pages</title>
+  <title>Nivelador de Carabina - Tolerancias Independientes</title>
   <style>
     :root {
       --bg: #121212;
@@ -80,13 +80,6 @@
       width: 1px;
       background: rgba(255, 255, 255, 0.2);
     }
-    .tolerance-ring {
-      position: absolute;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: 1px dashed var(--warning);
-    }
     .bubble {
       width: 24px;
       height: 24px;
@@ -133,9 +126,10 @@
     button.btn-sec { background-color: #333; color: var(--text); border: 1px solid var(--border); }
     button.btn-warn { background-color: var(--warning); color: #000; }
 
+    .input-col { display: flex; flex-direction: column; gap: 8px; }
     .input-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
     input[type="number"] {
-      width: 70px;
+      width: 75px;
       padding: 6px;
       background: #282828;
       border: 1px solid var(--border);
@@ -178,7 +172,6 @@
       <div id="target-circle" class="target-circle">
         <div class="crosshair-h"></div>
         <div class="crosshair-v"></div>
-        <div class="tolerance-ring"></div>
         <div id="bubble" class="bubble"></div>
       </div>
     </div>
@@ -191,14 +184,14 @@
         <div id="val-roll" class="pointer-value in-range">0.0°</div>
       </div>
       <div class="pointer-box">
-        <div class="pointer-label">Rumbo (Azimuth)</div>
+        <div class="pointer-label">Azimut / Rumbo</div>
         <div id="sym-azimuth" class="pointer-symbol">✓</div>
         <div id="val-azimuth" class="pointer-value in-range">0.0°</div>
       </div>
     </div>
   </div>
 
-  <!-- CONTROLES -->
+  <!-- CONTROLES Y TOLERANCIAS INDEPENDIENTES -->
   <div class="card" style="display:flex; flex-direction:column; gap:10px;">
     <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO</button>
     
@@ -207,9 +200,15 @@
       <button id="btn-wakelock" class="btn-sec">📱 Pantalla ON</button>
     </div>
 
-    <div class="input-row">
-      <label for="tol-input">Tolerancia Aceptable (± Grados):</label>
-      <input type="number" id="tol-input" value="1.5" step="0.1" min="0.1" max="10">
+    <div class="input-col">
+      <div class="input-row">
+        <label for="tol-roll-input">Tol. Canteo/Elevación (± Grados):</label>
+        <input type="number" id="tol-roll-input" value="15.0" step="0.5" min="0.1" max="90">
+      </div>
+      <div class="input-row">
+        <label for="tol-azi-input">Tol. Azimut / Rumbo (± Grados):</label>
+        <input type="number" id="tol-azi-input" value="45.0" step="0.5" min="0.1" max="180">
+      </div>
     </div>
   </div>
 
@@ -238,7 +237,9 @@
   let targetAzimuth = 0;
   let currentRoll = 0;
   let currentAzimuth = 0;
-  let tolerance = 1.5;
+
+  let tolRoll = 15.0;
+  let tolAzi = 45.0;
 
   const targetCircle = document.getElementById('target-circle');
   const bubble = document.getElementById('bubble');
@@ -253,7 +254,8 @@
   const btnLogShot = document.getElementById('btn-log-shot');
   const btnCopyLog = document.getElementById('btn-copy-log');
   const btnClearLog = document.getElementById('btn-clear-log');
-  const tolInput = document.getElementById('tol-input');
+  const tolRollInput = document.getElementById('tol-roll-input');
+  const tolAziInput = document.getElementById('tol-azi-input');
   const logList = document.getElementById('log-list');
 
   function init() {
@@ -285,17 +287,19 @@
   }
 
   function updateUI() {
-    tolerance = parseFloat(tolInput.value) || 1.5;
+    tolRoll = parseFloat(tolRollInput.value) || 15.0;
+    tolAzi = parseFloat(tolAziInput.value) || 45.0;
 
     let diffRoll = currentRoll - targetRoll;
     let diffAzimuth = (currentAzimuth - targetAzimuth + 540) % 360 - 180;
 
-    let clampX = Math.max(-80, Math.min(80, diffRoll * 10));
-    let clampY = Math.max(-80, Math.min(80, diffAzimuth * 10));
+    // Escalar la burbuja según las tolerancias configuradas
+    let clampX = Math.max(-80, Math.min(80, (diffRoll / tolRoll) * 40));
+    let clampY = Math.max(-80, Math.min(80, (diffAzimuth / tolAzi) * 40));
     bubble.style.transform = `translate(${clampX}px, ${clampY}px)`;
 
-    let isRollOk = Math.abs(diffRoll) <= tolerance;
-    let isAziOk = Math.abs(diffAzimuth) <= tolerance;
+    let isRollOk = Math.abs(diffRoll) <= tolRoll;
+    let isAziOk = Math.abs(diffAzimuth) <= tolAzi;
     let isOverallOk = isRollOk && isAziOk;
 
     if (isOverallOk) {
@@ -374,8 +378,8 @@
   btnLogShot.onclick = () => {
     let diffRoll = (currentRoll - targetRoll).toFixed(1);
     let diffAzimuth = ((currentAzimuth - targetAzimuth + 540) % 360 - 180).toFixed(1);
-    let rollSym = Math.abs(diffRoll) <= tolerance ? "✓" : (diffRoll > 0 ? "->" : "<-");
-    let aziSym = Math.abs(diffAzimuth) <= tolerance ? "✓" : (diffAzimuth > 0 ? "v" : "^");
+    let rollSym = Math.abs(diffRoll) <= tolRoll ? "✓" : (diffRoll > 0 ? "->" : "<-");
+    let aziSym = Math.abs(diffAzimuth) <= tolAzi ? "✓" : (diffAzimuth > 0 ? "v" : "^");
 
     addLog(`DISPARO: R: ${rollSym} ${Math.abs(diffRoll)}° | A: ${aziSym} ${Math.abs(diffAzimuth)}°`);
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
