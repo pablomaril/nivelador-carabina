@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Eje Z Puro</title>
+  <title>Nivelador de Carabina - Vector Directo</title>
   <style>
     :root {
       --bg: #121212;
@@ -229,19 +229,19 @@
 <body>
 
 <div class="container">
-  <h1>Nivelador de Carabina (Eje Z Puro)</h1>
+  <h1>Nivelador de Carabina</h1>
 
   <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 DESCOUPLING DE EJES ACTIVADO</div>
+    <div class="diag-title">🔍 MODO VECTORIAL INVERTIDO</div>
     <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
     <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
 
-  <!-- PANEL DE DIAles TRES EJES -->
+  <!-- PANEL DE DIALES TRES EJES -->
   <div class="card">
     <div class="main-grid">
-      <!-- EJE X (ELEVACIÓN VIOLETA) -->
+      <!-- EJE X (ELEVACIÓN LONGITUDINAL) -->
       <div class="torpedo-v-container">
         <div class="torpedo-v-ring"></div>
         <div id="bubble-v" class="bubble-v"></div>
@@ -254,7 +254,7 @@
         <div class="compass-center"></div>
       </div>
 
-      <!-- EJE Y (CANTEO VERDE) -->
+      <!-- EJE Y (CANTEO LATERAL) -->
       <div class="torpedo-h-container">
         <div class="torpedo-h-ring"></div>
         <div id="bubble-h" class="bubble-h"></div>
@@ -283,7 +283,7 @@
 
   <!-- PARÁMETROS -->
   <div class="card" style="display:flex; flex-direction:column; gap:8px;">
-    <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (3 EJES)</button>
+    <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (DOWNRANGE)</button>
     
     <div class="btn-group">
       <button id="btn-audio" class="btn-sec">🔊 Alerta: OFF</button>
@@ -327,22 +327,18 @@
   let audioCtx = null;
   let audioEnabled = false;
 
-  // Ceros calibrados
   let targetX = 0;
   let targetY = 0;
   let targetZ = 0;
 
-  // Estado actual
   let currentX = 0;
   let currentY = 0;
   let currentZ = 0;
 
-  // Tolerancias
   let tolX = 15.0;
   let tolZ = 45.0;
   let tolY = 5.0;
 
-  // Elementos UI
   const bubbleV = document.getElementById('bubble-v');
   const bubbleH = document.getElementById('bubble-h');
   const compassNeedle = document.getElementById('compass-needle');
@@ -383,26 +379,23 @@
     eventCount++;
     document.getElementById('diag-count').innerText = eventCount;
 
-    let alpha = e.alpha || 0; // Giro plano en Z
-    let beta = e.beta || 0;   // Inclinación en X
-    let gamma = e.gamma || 0; // Inclinación en Y
+    let alpha = e.alpha || 0;
+    let beta = e.beta || 0;
+    let gamma = e.gamma || 0;
 
-    // EJE X: Elevación longitudinal
-    currentX = beta;
+    // Inversión corregida para orientación plana sobre mira:
+    // Eje X (Elevación): Signo invertido para subir al levantar el cañón
+    currentX = -beta;
 
-    // EJE Y: Canteo lateral
-    currentY = gamma;
+    // Eje Y (Canteo): Invertido para acompañar la inclinación física
+    currentY = -gamma;
 
-    // EJE Z: Aislamiento estricto de rotación en el plano Z (Planar Rotation)
-    // Se deshace la influencia de gamma (Y) para aislar el giro azimutal
-    let radAlpha = alpha * (Math.PI / 180);
-    let radGamma = gamma * (Math.PI / 180);
-    
-    // Proyección Z desvinculada del balanceo Y
-    let planarZ = Math.atan2(Math.sin(radAlpha), Math.cos(radAlpha) * Math.cos(radGamma)) * (180 / Math.PI);
-    if (planarZ < 0) planarZ += 360;
-
-    currentZ = planarZ;
+    // Eje Z (Azimut): Aislamiento vectorial desvinculado de Y
+    if (e.webkitCompassHeading) {
+      currentZ = e.webkitCompassHeading;
+    } else {
+      currentZ = 360 - alpha;
+    }
 
     updateUI();
   }
@@ -416,18 +409,18 @@
     let diffY = currentY - targetY;
     let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
-    // 1. EJE X: Movimiento Vertical
+    // 1. EJE X (Elevación) -> Sentido directo invertido
     let clampXPos = Math.max(-50, Math.min(50, (diffX / tolX) * 20));
-    bubbleV.style.transform = `translateY(${clampXPos}px)`;
+    bubbleV.style.transform = `translateY(${-clampXPos}px)`;
 
-    // 2. EJE Z: Giro Aguja Azimut
+    // 2. EJE Z (Azimut) -> Giro sobre plano Z
     let scaledZAngle = (diffZ / tolZ) * 45;
     let clampZAngle = Math.max(-85, Math.min(85, scaledZAngle));
     compassNeedle.style.transform = `rotate(${clampZAngle}deg)`;
 
-    // 3. EJE Y: Movimiento Horizontal
+    // 3. EJE Y (Canteo) -> Sentido directo invertido
     let clampYPos = Math.max(-130, Math.min(130, (diffY / tolY) * 40));
-    bubbleH.style.transform = `translateX(${clampYPos}px)`;
+    bubbleH.style.transform = `translateX(${-clampYPos}px)`;
 
     // Rangos
     let isXOk = Math.abs(diffX) <= tolX;
