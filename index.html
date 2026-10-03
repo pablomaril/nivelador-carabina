@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - 3 Ejes Espaciales</title>
+  <title>Nivelador de Carabina - Eje Z Puro</title>
   <style>
     :root {
       --bg: #121212;
@@ -14,7 +14,6 @@
       --text: #ffffff;
       --subtext: #aaaaaa;
       --border: #333333;
-      --violet: #e040fb;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -44,83 +43,66 @@
       font-size: 0.75rem;
       font-family: monospace;
     }
-    .diag-title { font-weight: bold; color: var(--warning); margin-bottom: 2px; font-size: 0.8rem; }
-    .diag-item { display: flex; justify-content: space-between; }
+    .diag-title { font-weight: bold; color: var(--warning); margin-bottom: 2px; }
+    .diag-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
     .status-ok { color: var(--primary); font-weight: bold; }
-    .status-bad { color: var(--danger); font-weight: bold; }
 
-    /* LAYOUT PRINCIPAL DE SENSORES Y NIVELES (X, Y, Z) */
+    /* LAYOUT DE LOS 3 EJES */
     .main-grid {
       display: grid;
-      grid-template-columns: 44px 1fr;
+      grid-template-columns: 45px 1fr;
       grid-template-rows: auto auto;
       gap: 10px;
       align-items: center;
-      margin-top: 4px;
     }
 
-    /* EJE X: NIVEL LONGITUDINAL VIOLETA (BARRA VERTICAL EN PANTALLA) */
-    .level-vertical-wrapper {
+    /* EJE X: Nivel Torpedo Vertical (Elevación) */
+    .torpedo-v-container {
       grid-column: 1;
-      grid-row: 1 / span 2;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      height: 100%;
-      min-height: 220px;
-      background: #151515;
-      border: 2px solid var(--violet);
-      border-radius: 22px;
-      position: relative;
-      overflow: hidden;
-      justify-content: center;
-    }
-    .level-v-ring {
-      position: absolute;
+      grid-row: 1;
+      height: 140px;
       width: 100%;
+      background: #151515;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    .torpedo-v-ring {
+      position: absolute;
       height: 40px;
+      width: 100%;
       border-top: 2px dashed var(--warning);
       border-bottom: 2px dashed var(--warning);
-      background: rgba(255, 214, 0, 0.08);
+      background: rgba(255, 214, 0, 0.05);
     }
     .bubble-v {
-      width: 28px;
-      height: 28px;
-      background: var(--violet);
-      border-radius: 50%;
+      width: 30px;
+      height: 26px;
+      background: var(--primary);
+      border-radius: 13px;
       position: absolute;
-      box-shadow: 0 0 10px var(--violet);
+      box-shadow: 0 0 10px var(--primary);
       transition: transform 0.05s ease-out, background-color 0.2s;
     }
 
-    /* EJE Z: BRÚJULA SEMI-CIRCULAR AZIMUT (GIRO PLANO) */
-    .compass-area {
+    /* EJE Z: Brújula Semi-Circular (Azimut / Downrange) */
+    .compass-container {
       grid-column: 2;
       grid-row: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .gauge-title {
-      font-size: 0.72rem;
-      font-weight: bold;
-      color: var(--subtext);
-      text-transform: uppercase;
-      text-align: center;
-      margin-bottom: 4px;
-    }
-    .compass-gauge {
-      width: 100%;
-      height: 110px;
-      position: relative;
+      height: 140px;
       background: #151515;
-      border-radius: 110px 110px 0 0;
-      border: 2px solid var(--primary);
+      border-radius: 140px 140px 0 0;
+      border: 2px solid var(--border);
       border-bottom: none;
-      overflow: hidden;
+      position: relative;
       display: flex;
       justify-content: center;
       align-items: flex-end;
+      overflow: hidden;
     }
     .downrange-label {
       position: absolute;
@@ -134,78 +116,78 @@
       position: absolute;
       bottom: 0;
       width: 4px;
-      height: 80px;
-      background: var(--primary);
+      height: 105px;
+      background: var(--danger);
       transform-origin: bottom center;
-      transition: transform 0.08s ease-out, background-color 0.2s;
+      transition: transform 0.08s ease-out;
       border-radius: 2px;
     }
     .compass-center {
       position: absolute;
-      bottom: -8px;
-      width: 16px;
-      height: 16px;
+      bottom: -10px;
+      width: 20px;
+      height: 20px;
       background: #fff;
       border-radius: 50%;
     }
 
-    /* EJE Y: NIVEL TRANSVERSAL VERDE (BARRA HORIZONTAL EN PANTALLA) */
-    .level-horizontal-wrapper {
-      grid-column: 2;
+    /* EJE Y: Nivel Torpedo Horizontal (Canteo / Lateral) */
+    .torpedo-h-container {
+      grid-column: 1 / span 2;
       grid-row: 2;
-      width: 100%;
       height: 40px;
       background: #151515;
-      border: 2px solid var(--primary);
+      border: 2px solid var(--border);
       border-radius: 20px;
       position: relative;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       overflow: hidden;
     }
-    .level-h-ring {
+    .torpedo-h-ring {
       position: absolute;
-      width: 40px;
+      width: 50px;
       height: 100%;
       border-left: 2px dashed var(--warning);
       border-right: 2px dashed var(--warning);
-      background: rgba(255, 214, 0, 0.08);
+      background: rgba(255, 214, 0, 0.05);
     }
     .bubble-h {
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 26px;
       background: var(--primary);
-      border-radius: 50%;
+      border-radius: 13px;
       position: absolute;
       box-shadow: 0 0 10px var(--primary);
       transition: transform 0.05s ease-out, background-color 0.2s;
     }
 
-    /* INDICADORES TRIPLES DE VALORES */
-    .pointer-display {
+    /* Punteros */
+    .pointer-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
       gap: 6px;
-      margin-top: 10px;
+      margin-top: 8px;
     }
     .pointer-box {
       background: #181818;
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 6px;
       text-align: center;
     }
-    .pointer-symbol { font-size: 1.3rem; font-weight: bold; margin: 2px 0; color: var(--primary); }
-    .pointer-value { font-size: 0.8rem; font-weight: bold; }
+    .pointer-title { font-size: 0.65rem; color: var(--subtext); text-transform: uppercase; }
+    .pointer-symbol { font-size: 1.2rem; font-weight: bold; margin: 2px 0; color: var(--primary); }
+    .pointer-value { font-size: 0.75rem; font-weight: bold; }
     .out-range { color: var(--danger) !important; }
     .in-range { color: var(--primary) !important; }
 
-    /* CONTROLES E INPUTS */
+    /* Inputs y Botones */
     .btn-group { display: flex; gap: 8px; }
     button {
       flex: 1;
-      padding: 11px;
+      padding: 10px;
       border: none;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -221,7 +203,7 @@
     .input-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
     input[type="number"] {
       width: 65px;
-      padding: 5px;
+      padding: 4px;
       background: #282828;
       border: 1px solid var(--border);
       color: #fff;
@@ -230,9 +212,9 @@
       font-size: 0.85rem;
     }
 
-    /* LOGS */
+    /* Logs */
     .log-container {
-      max-height: 120px;
+      max-height: 110px;
       overflow-y: auto;
       background: #121212;
       border: 1px solid var(--border);
@@ -241,73 +223,65 @@
       font-family: monospace;
       font-size: 0.75rem;
     }
-    .log-item { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+    .log-item { margin-bottom: 2px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
   </style>
 </head>
 <body>
 
 <div class="container">
-  <h1>Nivelador de Carabina</h1>
+  <h1>Nivelador de Carabina (Eje Z Puro)</h1>
 
-  <!-- PANEL DE DIAGNÓSTICO -->
+  <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 MODO MAPEO TRIPLE EJE (X, Y, Z)</div>
-    <div class="diag-item"><span>Protocolo HTTPS:</span><span id="diag-protocol">-</span></div>
-    <div class="diag-item"><span>Eventos Recibidos:</span><span id="diag-count">0</span></div>
+    <div class="diag-title">🔍 DESCOUPLING DE EJES ACTIVADO</div>
+    <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
+    <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
 
-  <!-- TARJETA PRINCIPAL CON LOS 3 SENSORES MAPEADOS -->
+  <!-- PANEL DE DIAles TRES EJES -->
   <div class="card">
     <div class="main-grid">
-      
-      <!-- EJE X: BARRA VIOLETA LONGITUDINAL (ELEVACIÓN CAÑÓN) -->
-      <div class="level-vertical-wrapper" title="Eje X: Elevación del Cañón">
-        <div class="level-v-ring"></div>
-        <div id="bubble-x" class="bubble-v"></div>
+      <!-- EJE X (ELEVACIÓN VIOLETA) -->
+      <div class="torpedo-v-container">
+        <div class="torpedo-v-ring"></div>
+        <div id="bubble-v" class="bubble-v"></div>
       </div>
 
-      <!-- EJE Z: BRÚJULA SEMI-CIRCULAR AZIMUT (GIRO PLANO) -->
-      <div class="compass-area">
-        <div class="gauge-title">EJE Z: Downrange (Azimut)</div>
-        <div id="gauge-z" class="compass-gauge">
-          <div class="downrange-label">▲ DOWNRANGE (0°)</div>
-          <div id="needle-z" class="compass-needle"></div>
-          <div class="compass-center"></div>
-        </div>
+      <!-- EJE Z (AZIMUT AZUL - PLANO Z PURO) -->
+      <div class="compass-container">
+        <div class="downrange-label">▲ DOWNRANGE (EJE Z)</div>
+        <div id="compass-needle" class="compass-needle"></div>
+        <div class="compass-center"></div>
       </div>
 
-      <!-- EJE Y: BARRA VERDE TRANSVERSAL (CANTEO LATERAL) -->
-      <div style="grid-column: 2; grid-row: 2;">
-        <div class="gauge-title" style="margin-bottom:2px;">EJE Y: Canteo Lateral</div>
-        <div id="gauge-y" class="level-horizontal-wrapper">
-          <div class="level-h-ring"></div>
-          <div id="bubble-y" class="bubble-h"></div>
-        </div>
+      <!-- EJE Y (CANTEO VERDE) -->
+      <div class="torpedo-h-container">
+        <div class="torpedo-h-ring"></div>
+        <div id="bubble-h" class="bubble-h"></div>
       </div>
-
     </div>
 
-    <!-- TRES INDICADORES DE VALORES -->
-    <div class="pointer-display">
+    <!-- PUNTEROS Y LECTURAS -->
+    <div class="pointer-grid">
       <div class="pointer-box">
-        <div style="font-size:0.65rem; color:var(--violet); font-weight:bold;">EJE X (ELEV)</div>
+        <div class="pointer-title">X (Elevación)</div>
         <div id="sym-x" class="pointer-symbol">✓</div>
         <div id="val-x" class="pointer-value in-range">0.0°</div>
       </div>
       <div class="pointer-box">
-        <div style="font-size:0.65rem; color:var(--primary); font-weight:bold;">EJE Y (CANTEO)</div>
-        <div id="sym-y" class="pointer-symbol">✓</div>
-        <div id="val-y" class="pointer-value in-range">0.0°</div>
-      </div>
-      <div class="pointer-box">
-        <div style="font-size:0.65rem; color:var(--primary); font-weight:bold;">EJE Z (AZIMUT)</div>
+        <div class="pointer-title">Z (Azimut)</div>
         <div id="sym-z" class="pointer-symbol">✓</div>
         <div id="val-z" class="pointer-value in-range">0.0°</div>
+      </div>
+      <div class="pointer-box">
+        <div class="pointer-title">Y (Canteo)</div>
+        <div id="sym-y" class="pointer-symbol">✓</div>
+        <div id="val-y" class="pointer-value in-range">0.0°</div>
       </div>
     </div>
   </div>
 
-  <!-- CONTROLES Y TOLERANCIAS INDEPENDIENTES -->
+  <!-- PARÁMETROS -->
   <div class="card" style="display:flex; flex-direction:column; gap:8px;">
     <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (3 EJES)</button>
     
@@ -318,28 +292,28 @@
 
     <div class="input-col">
       <div class="input-row">
-        <label for="tol-x-input">Tol. Eje X - Elevación (±°):</label>
-        <input type="number" id="tol-x-input" value="15.0" step="0.5" min="0.1" max="90">
+        <label for="tol-x-input">Tol. Eje X (Elevación ±°):</label>
+        <input type="number" id="tol-x-input" value="15.0" step="0.5">
       </div>
       <div class="input-row">
-        <label for="tol-y-input">Tol. Eje Y - Canteo (±°):</label>
-        <input type="number" id="tol-y-input" value="5.0" step="0.5" min="0.1" max="90">
+        <label for="tol-z-input">Tol. Eje Z (Azimut ±°):</label>
+        <input type="number" id="tol-z-input" value="45.0" step="0.5">
       </div>
       <div class="input-row">
-        <label for="tol-z-input">Tol. Eje Z - Azimut (±°):</label>
-        <input type="number" id="tol-z-input" value="45.0" step="0.5" min="0.1" max="90">
+        <label for="tol-y-input">Tol. Eje Y (Canteo ±°):</label>
+        <input type="number" id="tol-y-input" value="5.0" step="0.5">
       </div>
     </div>
   </div>
 
-  <!-- HISTORIAL / LOGS -->
+  <!-- LOGS -->
   <div class="card" style="display:flex; flex-direction:column; gap:6px;">
     <button id="btn-log-shot">🎯 REGISTRAR DISPARO EN LOG</button>
     <div style="display:flex; justify-content:space-between; align-items:center;">
       <span style="font-size:0.75rem; color:var(--subtext);">Historial:</span>
       <div>
-        <button id="btn-copy-log" style="padding:3px 6px; font-size:0.7rem;" class="btn-sec">Copiar</button>
-        <button id="btn-clear-log" style="padding:3px 6px; font-size:0.7rem;" class="btn-sec">Limpiar</button>
+        <button id="btn-copy-log" style="padding:2px 6px; font-size:0.7rem;" class="btn-sec">Copiar</button>
+        <button id="btn-clear-log" style="padding:2px 6px; font-size:0.7rem;" class="btn-sec">Limpiar</button>
       </div>
     </div>
     <div id="log-list" class="log-container">
@@ -353,34 +327,32 @@
   let audioCtx = null;
   let audioEnabled = false;
 
-  // Calibración Cero
-  let targetX = 0; // Pitch (Elevación)
-  let targetY = 0; // Roll (Canteo)
-  let targetZ = 0; // Yaw (Azimut)
+  // Ceros calibrados
+  let targetX = 0;
+  let targetY = 0;
+  let targetZ = 0;
 
-  // Valores Actuales
+  // Estado actual
   let currentX = 0;
   let currentY = 0;
   let currentZ = 0;
 
   // Tolerancias
   let tolX = 15.0;
-  let tolY = 5.0;
   let tolZ = 45.0;
+  let tolY = 5.0;
 
   // Elementos UI
-  const bubbleX = document.getElementById('bubble-x');
-  const bubbleY = document.getElementById('bubble-y');
-  const needleZ = document.getElementById('needle-z');
-  const gaugeY = document.getElementById('gauge-y');
-  const gaugeZ = document.getElementById('gauge-z');
+  const bubbleV = document.getElementById('bubble-v');
+  const bubbleH = document.getElementById('bubble-h');
+  const compassNeedle = document.getElementById('compass-needle');
 
   const symX = document.getElementById('sym-x');
   const valX = document.getElementById('val-x');
-  const symY = document.getElementById('sym-y');
-  const valY = document.getElementById('val-y');
   const symZ = document.getElementById('sym-z');
   const valZ = document.getElementById('val-z');
+  const symY = document.getElementById('sym-y');
+  const valY = document.getElementById('val-y');
 
   const btnCalibrate = document.getElementById('btn-calibrate');
   const btnAudio = document.getElementById('btn-audio');
@@ -390,15 +362,15 @@
   const btnClearLog = document.getElementById('btn-clear-log');
 
   const tolXInput = document.getElementById('tol-x-input');
-  const tolYInput = document.getElementById('tol-y-input');
   const tolZInput = document.getElementById('tol-z-input');
+  const tolYInput = document.getElementById('tol-y-input');
   const logList = document.getElementById('log-list');
 
   function init() {
     const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
     document.getElementById('diag-protocol').innerHTML = isHttps 
       ? '<span class="status-ok">HTTPS OK</span>' 
-      : '<span class="status-bad">SÓLO HTTPS</span>';
+      : '<span class="status-bad">REQUIERE HTTPS</span>';
 
     if ('ondeviceorientationabsolute' in window) {
       window.addEventListener('deviceorientationabsolute', handleOrientation, true);
@@ -411,83 +383,78 @@
     eventCount++;
     document.getElementById('diag-count').innerText = eventCount;
 
-    let alpha = e.alpha || 0;
-    let beta = e.beta || 0;
-    let gamma = e.gamma || 0;
+    let alpha = e.alpha || 0; // Giro plano en Z
+    let beta = e.beta || 0;   // Inclinación en X
+    let gamma = e.gamma || 0; // Inclinación en Y
 
-    // Mapa de ejes con teléfono plano sobre la mira:
-    // EJE X (Longitudinal / Elevación cañón) -> Beta (Inclinación adelante/atrás)
+    // EJE X: Elevación longitudinal
     currentX = beta;
 
-    // EJE Y (Transversal / Canteo lateral) -> Gamma (Ladeo izquierda/derecha)
+    // EJE Y: Canteo lateral
     currentY = gamma;
 
-    // EJE Z (Azimut plano / Giro sobre la mesa) -> Alpha o Brújula
-    if (e.webkitCompassHeading) {
-      currentZ = e.webkitCompassHeading;
-    } else {
-      currentZ = 360 - alpha;
-    }
+    // EJE Z: Aislamiento estricto de rotación en el plano Z (Planar Rotation)
+    // Se deshace la influencia de gamma (Y) para aislar el giro azimutal
+    let radAlpha = alpha * (Math.PI / 180);
+    let radGamma = gamma * (Math.PI / 180);
+    
+    // Proyección Z desvinculada del balanceo Y
+    let planarZ = Math.atan2(Math.sin(radAlpha), Math.cos(radAlpha) * Math.cos(radGamma)) * (180 / Math.PI);
+    if (planarZ < 0) planarZ += 360;
+
+    currentZ = planarZ;
 
     updateUI();
   }
 
   function updateUI() {
     tolX = parseFloat(tolXInput.value) || 15.0;
-    tolY = parseFloat(tolYInput.value) || 5.0;
     tolZ = parseFloat(tolZInput.value) || 45.0;
+    tolY = parseFloat(tolYInput.value) || 5.0;
 
     let diffX = currentX - targetX;
     let diffY = currentY - targetY;
     let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
-    // 1. MOVER BUBBLE X (Barra Violeta Vertical - Elevación)
-    // Subir cañón = burbuja sube; Bajar cañón = burbuja baja
-    let clampXPos = Math.max(-80, Math.min(80, (diffX / tolX) * -40));
-    bubbleX.style.transform = `translateY(${clampXPos}px)`;
+    // 1. EJE X: Movimiento Vertical
+    let clampXPos = Math.max(-50, Math.min(50, (diffX / tolX) * 20));
+    bubbleV.style.transform = `translateY(${clampXPos}px)`;
 
-    // 2. MOVER BUBBLE Y (Barra Verde Horizontal - Canteo)
-    let clampYPos = Math.max(-100, Math.min(100, (diffY / tolY) * 40));
-    bubbleY.style.transform = `translateX(${clampYPos}px)`;
-
-    // 3. MOVER AGUJA Z (Brújula Semi-circular - Azimut)
-    let scaledZAngle = (diffZ / tolZ) * 45; 
+    // 2. EJE Z: Giro Aguja Azimut
+    let scaledZAngle = (diffZ / tolZ) * 45;
     let clampZAngle = Math.max(-85, Math.min(85, scaledZAngle));
-    needleZ.style.transform = `rotate(${clampZAngle}deg)`;
+    compassNeedle.style.transform = `rotate(${clampZAngle}deg)`;
 
-    // Evaluar rangos independientes
+    // 3. EJE Y: Movimiento Horizontal
+    let clampYPos = Math.max(-130, Math.min(130, (diffY / tolY) * 40));
+    bubbleH.style.transform = `translateX(${clampYPos}px)`;
+
+    // Rangos
     let isXOk = Math.abs(diffX) <= tolX;
-    let isYOk = Math.abs(diffY) <= tolY;
     let isZOk = Math.abs(diffZ) <= tolZ;
-    let isOverallOk = isXOk && isYOk && isZOk;
+    let isYOk = Math.abs(diffY) <= tolY;
+    let isOverallOk = isXOk && isZOk && isYOk;
 
-    // Colores visuales
-    bubbleX.style.backgroundColor = isXOk ? 'var(--violet)' : 'var(--danger)';
-    bubbleY.style.backgroundColor = isYOk ? 'var(--primary)' : 'var(--danger)';
-    gaugeY.style.borderColor = isYOk ? 'var(--primary)' : 'var(--danger)';
-    needleZ.style.background = isZOk ? 'var(--primary)' : 'var(--danger)';
-    gaugeZ.style.borderColor = isZOk ? 'var(--primary)' : 'var(--danger)';
+    bubbleV.style.backgroundColor = isXOk ? 'var(--primary)' : 'var(--danger)';
+    compassNeedle.style.background = isZOk ? 'var(--primary)' : 'var(--danger)';
+    bubbleH.style.backgroundColor = isYOk ? 'var(--primary)' : 'var(--danger)';
 
-    // Indicadores numéricos y símbolos
-    let symTextX = isXOk ? "✓" : (diffX > 0 ? "▲" : "▼");
-    symX.innerText = symTextX;
+    // Formateo de punteros
+    let symXTxt = isXOk ? "✓" : (diffX > 0 ? "▲" : "▼");
+    symX.innerText = symXTxt;
     symX.className = `pointer-symbol ${isXOk ? 'in-range' : 'out-range'}`;
-    valX.innerText = `${Math.abs(diffX).toFixed(1)}° ${symTextX}`;
-    valX.className = `pointer-value ${isXOk ? 'in-range' : 'out-range'}`;
+    valX.innerText = `${Math.abs(diffX).toFixed(1)}° ${symXTxt}`;
 
-    let symTextY = isYOk ? "✓" : (diffY > 0 ? "->" : "<-");
-    symY.innerText = symTextY;
-    symY.className = `pointer-symbol ${isYOk ? 'in-range' : 'out-range'}`;
-    valY.innerText = `${Math.abs(diffY).toFixed(1)}° ${symTextY}`;
-    valY.className = `pointer-value ${isYOk ? 'in-range' : 'out-range'}`;
-
-    let symTextZ = isZOk ? "✓" : (diffZ > 0 ? "->" : "<-");
-    symZ.innerText = symTextZ;
+    let symZTxt = isZOk ? "✓" : (diffZ > 0 ? "->" : "<-");
+    symZ.innerText = symZTxt;
     symZ.className = `pointer-symbol ${isZOk ? 'in-range' : 'out-range'}`;
-    valZ.innerText = `${Math.abs(diffZ).toFixed(1)}° ${symTextZ}`;
-    valZ.className = `pointer-value ${isZOk ? 'in-range' : 'out-range'}`;
+    valZ.innerText = `${Math.abs(diffZ).toFixed(1)}° ${symZTxt}`;
 
-    // Alerta sonora si alguno sale de tolerancia
+    let symYTxt = isYOk ? "✓" : (diffY > 0 ? "->" : "<-");
+    symY.innerText = symYTxt;
+    symY.className = `pointer-symbol ${isYOk ? 'in-range' : 'out-range'}`;
+    valY.innerText = `${Math.abs(diffY).toFixed(1)}° ${symYTxt}`;
+
     if (audioEnabled && !isOverallOk) {
       playBeep();
     }
@@ -512,7 +479,7 @@
     targetY = currentY;
     targetZ = currentZ;
     if (navigator.vibrate) navigator.vibrate(100);
-    addLog(`[CALIBRACIÓN] Cero guardado (3 Ejes)`);
+    addLog(`[CALIBRACIÓN] Cero guardado`);
   };
 
   btnAudio.onclick = () => {
@@ -547,11 +514,7 @@
     let diffY = (currentY - targetY).toFixed(1);
     let diffZ = ((currentZ - targetZ + 540) % 360 - 180).toFixed(1);
 
-    let symTextX = Math.abs(diffX) <= tolX ? "✓" : (diffX > 0 ? "▲" : "▼");
-    let symTextY = Math.abs(diffY) <= tolY ? "✓" : (diffY > 0 ? "->" : "<-");
-    let symTextZ = Math.abs(diffZ) <= tolZ ? "✓" : (diffZ > 0 ? "->" : "<-");
-
-    addLog(`DISPARO: Elev(X): ${symTextX}${Math.abs(diffX)}° | Cant(Y): ${symTextY}${Math.abs(diffY)}° | Azim(Z): ${symTextZ}${Math.abs(diffZ)}°`);
+    addLog(`SHOT: X:${diffX}° | Z:${diffZ}° | Y:${diffY}°`);
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   };
 
