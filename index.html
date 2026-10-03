@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Plano Longitudinal</title>
+  <title>Nivelador de Carabina - 3 Ejes Espaciales</title>
   <style>
     :root {
       --bg: #121212;
@@ -14,6 +14,7 @@
       --text: #ffffff;
       --subtext: #aaaaaa;
       --border: #333333;
+      --violet: #e040fb;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -23,14 +24,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 12px;
+      padding: 10px;
       min-height: 100vh;
     }
-    .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 12px; }
+    .container { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 10px; }
     .card {
       background-color: var(--card-bg);
       border-radius: 12px;
-      padding: 14px;
+      padding: 12px;
       border: 1px solid var(--border);
       box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
@@ -40,30 +41,81 @@
     .diag-panel {
       background-color: #181818;
       border-left: 4px solid var(--warning);
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-family: monospace;
     }
-    .diag-title { font-weight: bold; color: var(--warning); margin-bottom: 4px; font-size: 0.85rem; }
-    .diag-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
+    .diag-title { font-weight: bold; color: var(--warning); margin-bottom: 2px; font-size: 0.8rem; }
+    .diag-item { display: flex; justify-content: space-between; }
     .status-ok { color: var(--primary); font-weight: bold; }
     .status-bad { color: var(--danger); font-weight: bold; }
 
-    /* DIAL 1: Brújula Semi-Circular (Azimut 180°) */
+    /* LAYOUT PRINCIPAL DE SENSORES Y NIVELES (X, Y, Z) */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 44px 1fr;
+      grid-template-rows: auto auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    /* EJE X: NIVEL LONGITUDINAL VIOLETA (BARRA VERTICAL EN PANTALLA) */
+    .level-vertical-wrapper {
+      grid-column: 1;
+      grid-row: 1 / span 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      min-height: 220px;
+      background: #151515;
+      border: 2px solid var(--violet);
+      border-radius: 22px;
+      position: relative;
+      overflow: hidden;
+      justify-content: center;
+    }
+    .level-v-ring {
+      position: absolute;
+      width: 100%;
+      height: 40px;
+      border-top: 2px dashed var(--warning);
+      border-bottom: 2px dashed var(--warning);
+      background: rgba(255, 214, 0, 0.08);
+    }
+    .bubble-v {
+      width: 28px;
+      height: 28px;
+      background: var(--violet);
+      border-radius: 50%;
+      position: absolute;
+      box-shadow: 0 0 10px var(--violet);
+      transition: transform 0.05s ease-out, background-color 0.2s;
+    }
+
+    /* EJE Z: BRÚJULA SEMI-CIRCULAR AZIMUT (GIRO PLANO) */
+    .compass-area {
+      grid-column: 2;
+      grid-row: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
     .gauge-title {
-      font-size: 0.8rem;
+      font-size: 0.72rem;
       font-weight: bold;
       color: var(--subtext);
       text-transform: uppercase;
       text-align: center;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .compass-gauge {
       width: 100%;
-      height: 120px;
+      height: 110px;
       position: relative;
       background: #151515;
-      border-radius: 120px 120px 0 0;
-      border: 2px solid var(--border);
+      border-radius: 110px 110px 0 0;
+      border: 2px solid var(--primary);
       border-bottom: none;
       overflow: hidden;
       display: flex;
@@ -72,8 +124,8 @@
     }
     .downrange-label {
       position: absolute;
-      top: 10px;
-      font-size: 0.75rem;
+      top: 8px;
+      font-size: 0.7rem;
       font-weight: bold;
       color: var(--primary);
       letter-spacing: 1px;
@@ -82,80 +134,81 @@
       position: absolute;
       bottom: 0;
       width: 4px;
-      height: 90px;
-      background: var(--danger);
+      height: 80px;
+      background: var(--primary);
       transform-origin: bottom center;
-      transition: transform 0.08s ease-out;
+      transition: transform 0.08s ease-out, background-color 0.2s;
       border-radius: 2px;
     }
     .compass-center {
       position: absolute;
-      bottom: -10px;
-      width: 20px;
-      height: 20px;
+      bottom: -8px;
+      width: 16px;
+      height: 16px;
       background: #fff;
       border-radius: 50%;
     }
 
-    /* DIAL 2: Nivel Torpedo Horizontal (Elevación/Pitch del Cañón) */
-    .torpedo-level {
+    /* EJE Y: NIVEL TRANSVERSAL VERDE (BARRA HORIZONTAL EN PANTALLA) */
+    .level-horizontal-wrapper {
+      grid-column: 2;
+      grid-row: 2;
       width: 100%;
       height: 40px;
       background: #151515;
-      border: 2px solid var(--border);
+      border: 2px solid var(--primary);
       border-radius: 20px;
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      margin-top: 6px;
     }
-    .torpedo-center-ring {
+    .level-h-ring {
       position: absolute;
-      width: 50px;
+      width: 40px;
       height: 100%;
       border-left: 2px dashed var(--warning);
       border-right: 2px dashed var(--warning);
-      background: rgba(255, 214, 0, 0.05);
+      background: rgba(255, 214, 0, 0.08);
     }
-    .torpedo-bubble {
-      width: 32px;
+    .bubble-h {
+      width: 28px;
       height: 28px;
       background: var(--primary);
-      border-radius: 14px;
+      border-radius: 50%;
       position: absolute;
-      box-shadow: 0 0 12px var(--primary);
+      box-shadow: 0 0 10px var(--primary);
       transition: transform 0.05s ease-out, background-color 0.2s;
     }
 
-    /* Indicadores y Punteros */
+    /* INDICADORES TRIPLES DE VALORES */
     .pointer-display {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
       margin-top: 10px;
     }
     .pointer-box {
       background: #181818;
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 8px;
+      padding: 6px;
       text-align: center;
     }
-    .pointer-symbol { font-size: 1.5rem; font-weight: bold; margin: 2px 0; color: var(--primary); }
-    .pointer-value { font-size: 0.85rem; font-weight: bold; }
+    .pointer-symbol { font-size: 1.3rem; font-weight: bold; margin: 2px 0; color: var(--primary); }
+    .pointer-value { font-size: 0.8rem; font-weight: bold; }
     .out-range { color: var(--danger) !important; }
     .in-range { color: var(--primary) !important; }
 
-    /* Botones e Inputs */
+    /* CONTROLES E INPUTS */
     .btn-group { display: flex; gap: 8px; }
     button {
       flex: 1;
-      padding: 12px;
+      padding: 11px;
       border: none;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: bold;
       cursor: pointer;
       color: #000;
@@ -164,29 +217,29 @@
     button.btn-sec { background-color: #333; color: var(--text); border: 1px solid var(--border); }
     button.btn-warn { background-color: var(--warning); color: #000; }
 
-    .input-col { display: flex; flex-direction: column; gap: 8px; }
-    .input-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
+    .input-col { display: flex; flex-direction: column; gap: 6px; }
+    .input-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
     input[type="number"] {
-      width: 75px;
-      padding: 6px;
+      width: 65px;
+      padding: 5px;
       background: #282828;
       border: 1px solid var(--border);
       color: #fff;
       border-radius: 6px;
       text-align: center;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
 
-    /* Logs */
+    /* LOGS */
     .log-container {
-      max-height: 130px;
+      max-height: 120px;
       overflow-y: auto;
       background: #121212;
       border: 1px solid var(--border);
       border-radius: 6px;
-      padding: 8px;
+      padding: 6px;
       font-family: monospace;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
     }
     .log-item { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
   </style>
@@ -196,47 +249,67 @@
 <div class="container">
   <h1>Nivelador de Carabina</h1>
 
-  <!-- DIAGNÓSTICO -->
+  <!-- PANEL DE DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 MODO PLANO SOBRE MIRA</div>
-    <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
-    <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
+    <div class="diag-title">🔍 MODO MAPEO TRIPLE EJE (X, Y, Z)</div>
+    <div class="diag-item"><span>Protocolo HTTPS:</span><span id="diag-protocol">-</span></div>
+    <div class="diag-item"><span>Eventos Recibidos:</span><span id="diag-count">0</span></div>
   </div>
 
-  <!-- DIAL 1: BRÚJULA AZIMUT (180°) -->
+  <!-- TARJETA PRINCIPAL CON LOS 3 SENSORES MAPEADOS -->
   <div class="card">
-    <div class="gauge-title">1. Desviación Acimutal (Giro Plano)</div>
-    <div class="compass-gauge">
-      <div class="downrange-label">▲ DOWNRANGE (0°)</div>
-      <div id="compass-needle" class="compass-needle"></div>
-      <div class="compass-center"></div>
+    <div class="main-grid">
+      
+      <!-- EJE X: BARRA VIOLETA LONGITUDINAL (ELEVACIÓN CAÑÓN) -->
+      <div class="level-vertical-wrapper" title="Eje X: Elevación del Cañón">
+        <div class="level-v-ring"></div>
+        <div id="bubble-x" class="bubble-v"></div>
+      </div>
+
+      <!-- EJE Z: BRÚJULA SEMI-CIRCULAR AZIMUT (GIRO PLANO) -->
+      <div class="compass-area">
+        <div class="gauge-title">EJE Z: Downrange (Azimut)</div>
+        <div id="gauge-z" class="compass-gauge">
+          <div class="downrange-label">▲ DOWNRANGE (0°)</div>
+          <div id="needle-z" class="compass-needle"></div>
+          <div class="compass-center"></div>
+        </div>
+      </div>
+
+      <!-- EJE Y: BARRA VERDE TRANSVERSAL (CANTEO LATERAL) -->
+      <div style="grid-column: 2; grid-row: 2;">
+        <div class="gauge-title" style="margin-bottom:2px;">EJE Y: Canteo Lateral</div>
+        <div id="gauge-y" class="level-horizontal-wrapper">
+          <div class="level-h-ring"></div>
+          <div id="bubble-y" class="bubble-h"></div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- DIAL 2: NIVEL TORPEDO (ELEVACIÓN LONGITUDINAL DEL CAÑÓN) -->
-    <div class="gauge-title" style="margin-top: 14px;">2. Inclinación del Cañón (Longitudinal)</div>
-    <div class="torpedo-level">
-      <div class="torpedo-center-ring"></div>
-      <div id="torpedo-bubble" class="torpedo-bubble"></div>
-    </div>
-
-    <!-- PUNTEROS Y SÍMBOLOS -->
+    <!-- TRES INDICADORES DE VALORES -->
     <div class="pointer-display">
       <div class="pointer-box">
-        <div style="font-size:0.7rem; color:var(--subtext);">ELEV. CAÑÓN</div>
-        <div id="sym-pitch" class="pointer-symbol">✓</div>
-        <div id="val-pitch" class="pointer-value in-range">0.0°</div>
+        <div style="font-size:0.65rem; color:var(--violet); font-weight:bold;">EJE X (ELEV)</div>
+        <div id="sym-x" class="pointer-symbol">✓</div>
+        <div id="val-x" class="pointer-value in-range">0.0°</div>
       </div>
       <div class="pointer-box">
-        <div style="font-size:0.7rem; color:var(--subtext);">ACIMUT/GIRO</div>
-        <div id="sym-azimuth" class="pointer-symbol">✓</div>
-        <div id="val-azimuth" class="pointer-value in-range">0.0°</div>
+        <div style="font-size:0.65rem; color:var(--primary); font-weight:bold;">EJE Y (CANTEO)</div>
+        <div id="sym-y" class="pointer-symbol">✓</div>
+        <div id="val-y" class="pointer-value in-range">0.0°</div>
+      </div>
+      <div class="pointer-box">
+        <div style="font-size:0.65rem; color:var(--primary); font-weight:bold;">EJE Z (AZIMUT)</div>
+        <div id="sym-z" class="pointer-symbol">✓</div>
+        <div id="val-z" class="pointer-value in-range">0.0°</div>
       </div>
     </div>
   </div>
 
-  <!-- CONTROLES Y PARÁMETROS -->
-  <div class="card" style="display:flex; flex-direction:column; gap:10px;">
-    <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (DOWNRANGE)</button>
+  <!-- CONTROLES Y TOLERANCIAS INDEPENDIENTES -->
+  <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+    <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (3 EJES)</button>
     
     <div class="btn-group">
       <button id="btn-audio" class="btn-sec">🔊 Alerta: OFF</button>
@@ -245,24 +318,28 @@
 
     <div class="input-col">
       <div class="input-row">
-        <label for="tol-pitch-input">Tol. Elevación (± Grados):</label>
-        <input type="number" id="tol-pitch-input" value="15.0" step="0.5" min="0.1" max="90">
+        <label for="tol-x-input">Tol. Eje X - Elevación (±°):</label>
+        <input type="number" id="tol-x-input" value="15.0" step="0.5" min="0.1" max="90">
       </div>
       <div class="input-row">
-        <label for="tol-azi-input">Tol. Acimut (± Grados):</label>
-        <input type="number" id="tol-azi-input" value="45.0" step="0.5" min="0.1" max="90">
+        <label for="tol-y-input">Tol. Eje Y - Canteo (±°):</label>
+        <input type="number" id="tol-y-input" value="5.0" step="0.5" min="0.1" max="90">
+      </div>
+      <div class="input-row">
+        <label for="tol-z-input">Tol. Eje Z - Azimut (±°):</label>
+        <input type="number" id="tol-z-input" value="45.0" step="0.5" min="0.1" max="90">
       </div>
     </div>
   </div>
 
   <!-- HISTORIAL / LOGS -->
-  <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+  <div class="card" style="display:flex; flex-direction:column; gap:6px;">
     <button id="btn-log-shot">🎯 REGISTRAR DISPARO EN LOG</button>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
       <span style="font-size:0.75rem; color:var(--subtext);">Historial:</span>
       <div>
-        <button id="btn-copy-log" style="padding:4px 8px; font-size:0.75rem;" class="btn-sec">Copiar</button>
-        <button id="btn-clear-log" style="padding:4px 8px; font-size:0.75rem;" class="btn-sec">Limpiar</button>
+        <button id="btn-copy-log" style="padding:3px 6px; font-size:0.7rem;" class="btn-sec">Copiar</button>
+        <button id="btn-clear-log" style="padding:3px 6px; font-size:0.7rem;" class="btn-sec">Limpiar</button>
       </div>
     </div>
     <div id="log-list" class="log-container">
@@ -276,20 +353,34 @@
   let audioCtx = null;
   let audioEnabled = false;
 
-  let targetPitch = 0;
-  let targetAzimuth = 0;
-  let currentPitch = 0;
-  let currentAzimuth = 0;
+  // Calibración Cero
+  let targetX = 0; // Pitch (Elevación)
+  let targetY = 0; // Roll (Canteo)
+  let targetZ = 0; // Yaw (Azimut)
 
-  let tolPitch = 15.0;
-  let tolAzi = 45.0;
+  // Valores Actuales
+  let currentX = 0;
+  let currentY = 0;
+  let currentZ = 0;
 
-  const compassNeedle = document.getElementById('compass-needle');
-  const torpedoBubble = document.getElementById('torpedo-bubble');
-  const symPitch = document.getElementById('sym-pitch');
-  const valPitch = document.getElementById('val-pitch');
-  const symAzimuth = document.getElementById('sym-azimuth');
-  const valAzimuth = document.getElementById('val-azimuth');
+  // Tolerancias
+  let tolX = 15.0;
+  let tolY = 5.0;
+  let tolZ = 45.0;
+
+  // Elementos UI
+  const bubbleX = document.getElementById('bubble-x');
+  const bubbleY = document.getElementById('bubble-y');
+  const needleZ = document.getElementById('needle-z');
+  const gaugeY = document.getElementById('gauge-y');
+  const gaugeZ = document.getElementById('gauge-z');
+
+  const symX = document.getElementById('sym-x');
+  const valX = document.getElementById('val-x');
+  const symY = document.getElementById('sym-y');
+  const valY = document.getElementById('val-y');
+  const symZ = document.getElementById('sym-z');
+  const valZ = document.getElementById('val-z');
 
   const btnCalibrate = document.getElementById('btn-calibrate');
   const btnAudio = document.getElementById('btn-audio');
@@ -297,8 +388,10 @@
   const btnLogShot = document.getElementById('btn-log-shot');
   const btnCopyLog = document.getElementById('btn-copy-log');
   const btnClearLog = document.getElementById('btn-clear-log');
-  const tolPitchInput = document.getElementById('tol-pitch-input');
-  const tolAziInput = document.getElementById('tol-azi-input');
+
+  const tolXInput = document.getElementById('tol-x-input');
+  const tolYInput = document.getElementById('tol-y-input');
+  const tolZInput = document.getElementById('tol-z-input');
   const logList = document.getElementById('log-list');
 
   function init() {
@@ -319,58 +412,82 @@
     document.getElementById('diag-count').innerText = eventCount;
 
     let alpha = e.alpha || 0;
-    let beta = e.beta || 0; // Elevación longitudinal del cañón con cel. plano
+    let beta = e.beta || 0;
     let gamma = e.gamma || 0;
 
-    // Con el celular plano sobre la mira:
-    // Beta mide la inclinación longitudinal del cañón (pitch)
-    currentPitch = beta;
+    // Mapa de ejes con teléfono plano sobre la mira:
+    // EJE X (Longitudinal / Elevación cañón) -> Beta (Inclinación adelante/atrás)
+    currentX = beta;
 
-    // Alpha/Brújula mide el giro de azimut sobre la mesa/plano
+    // EJE Y (Transversal / Canteo lateral) -> Gamma (Ladeo izquierda/derecha)
+    currentY = gamma;
+
+    // EJE Z (Azimut plano / Giro sobre la mesa) -> Alpha o Brújula
     if (e.webkitCompassHeading) {
-      currentAzimuth = e.webkitCompassHeading;
+      currentZ = e.webkitCompassHeading;
     } else {
-      currentAzimuth = 360 - alpha;
+      currentZ = 360 - alpha;
     }
 
     updateUI();
   }
 
   function updateUI() {
-    tolPitch = parseFloat(tolPitchInput.value) || 15.0;
-    tolAzi = parseFloat(tolAziInput.value) || 45.0;
+    tolX = parseFloat(tolXInput.value) || 15.0;
+    tolY = parseFloat(tolYInput.value) || 5.0;
+    tolZ = parseFloat(tolZInput.value) || 45.0;
 
-    let diffPitch = currentPitch - targetPitch;
-    let diffAzimuth = (currentAzimuth - targetAzimuth + 540) % 360 - 180;
+    let diffX = currentX - targetX;
+    let diffY = currentY - targetY;
+    let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
-    // 1. DIAL ACIMUT: Mapeo de rotación plana (-85° a +85°)
-    let scaledAziAngle = (diffAzimuth / tolAzi) * 45; 
-    let clampAziAngle = Math.max(-85, Math.min(85, scaledAziAngle));
-    compassNeedle.style.transform = `rotate(${clampAziAngle}deg)`;
+    // 1. MOVER BUBBLE X (Barra Violeta Vertical - Elevación)
+    // Subir cañón = burbuja sube; Bajar cañón = burbuja baja
+    let clampXPos = Math.max(-80, Math.min(80, (diffX / tolX) * -40));
+    bubbleX.style.transform = `translateY(${clampXPos}px)`;
 
-    // 2. DIAL TORPEDO: Mover burbuja según inclinación longitudinal (elevación cañón)
-    let clampPitchPos = Math.max(-140, Math.min(140, (diffPitch / tolPitch) * 50));
-    torpedoBubble.style.transform = `translateX(${clampPitchPos}px)`;
+    // 2. MOVER BUBBLE Y (Barra Verde Horizontal - Canteo)
+    let clampYPos = Math.max(-100, Math.min(100, (diffY / tolY) * 40));
+    bubbleY.style.transform = `translateX(${clampYPos}px)`;
 
-    let isPitchOk = Math.abs(diffPitch) <= tolPitch;
-    let isAziOk = Math.abs(diffAzimuth) <= tolAzi;
-    let isOverallOk = isPitchOk && isAziOk;
+    // 3. MOVER AGUJA Z (Brújula Semi-circular - Azimut)
+    let scaledZAngle = (diffZ / tolZ) * 45; 
+    let clampZAngle = Math.max(-85, Math.min(85, scaledZAngle));
+    needleZ.style.transform = `rotate(${clampZAngle}deg)`;
 
-    compassNeedle.style.background = isAziOk ? 'var(--primary)' : 'var(--danger)';
-    torpedoBubble.style.backgroundColor = isPitchOk ? 'var(--primary)' : 'var(--danger)';
+    // Evaluar rangos independientes
+    let isXOk = Math.abs(diffX) <= tolX;
+    let isYOk = Math.abs(diffY) <= tolY;
+    let isZOk = Math.abs(diffZ) <= tolZ;
+    let isOverallOk = isXOk && isYOk && isZOk;
 
-    let pitchSym = isPitchOk ? "✓" : (diffPitch > 0 ? "▲" : "▼");
-    symPitch.innerText = pitchSym;
-    symPitch.className = `pointer-symbol ${isPitchOk ? 'in-range' : 'out-range'}`;
-    valPitch.innerText = `${Math.abs(diffPitch).toFixed(1)}° ${pitchSym}`;
-    valPitch.className = `pointer-value ${isPitchOk ? 'in-range' : 'out-range'}`;
+    // Colores visuales
+    bubbleX.style.backgroundColor = isXOk ? 'var(--violet)' : 'var(--danger)';
+    bubbleY.style.backgroundColor = isYOk ? 'var(--primary)' : 'var(--danger)';
+    gaugeY.style.borderColor = isYOk ? 'var(--primary)' : 'var(--danger)';
+    needleZ.style.background = isZOk ? 'var(--primary)' : 'var(--danger)';
+    gaugeZ.style.borderColor = isZOk ? 'var(--primary)' : 'var(--danger)';
 
-    let aziSym = isAziOk ? "✓" : (diffAzimuth > 0 ? "->" : "<-");
-    symAzimuth.innerText = aziSym;
-    symAzimuth.className = `pointer-symbol ${isAziOk ? 'in-range' : 'out-range'}`;
-    valAzimuth.innerText = `${Math.abs(diffAzimuth).toFixed(1)}° ${aziSym}`;
-    valAzimuth.className = `pointer-value ${isAziOk ? 'in-range' : 'out-range'}`;
+    // Indicadores numéricos y símbolos
+    let symTextX = isXOk ? "✓" : (diffX > 0 ? "▲" : "▼");
+    symX.innerText = symTextX;
+    symX.className = `pointer-symbol ${isXOk ? 'in-range' : 'out-range'}`;
+    valX.innerText = `${Math.abs(diffX).toFixed(1)}° ${symTextX}`;
+    valX.className = `pointer-value ${isXOk ? 'in-range' : 'out-range'}`;
 
+    let symTextY = isYOk ? "✓" : (diffY > 0 ? "->" : "<-");
+    symY.innerText = symTextY;
+    symY.className = `pointer-symbol ${isYOk ? 'in-range' : 'out-range'}`;
+    valY.innerText = `${Math.abs(diffY).toFixed(1)}° ${symTextY}`;
+    valY.className = `pointer-value ${isYOk ? 'in-range' : 'out-range'}`;
+
+    let symTextZ = isZOk ? "✓" : (diffZ > 0 ? "->" : "<-");
+    symZ.innerText = symTextZ;
+    symZ.className = `pointer-symbol ${isZOk ? 'in-range' : 'out-range'}`;
+    valZ.innerText = `${Math.abs(diffZ).toFixed(1)}° ${symTextZ}`;
+    valZ.className = `pointer-value ${isZOk ? 'in-range' : 'out-range'}`;
+
+    // Alerta sonora si alguno sale de tolerancia
     if (audioEnabled && !isOverallOk) {
       playBeep();
     }
@@ -391,10 +508,11 @@
   }
 
   btnCalibrate.onclick = () => {
-    targetPitch = currentPitch;
-    targetAzimuth = currentAzimuth;
+    targetX = currentX;
+    targetY = currentY;
+    targetZ = currentZ;
     if (navigator.vibrate) navigator.vibrate(100);
-    addLog(`[CALIBRACIÓN] Downrange guardado`);
+    addLog(`[CALIBRACIÓN] Cero guardado (3 Ejes)`);
   };
 
   btnAudio.onclick = () => {
@@ -425,12 +543,15 @@
   }
 
   btnLogShot.onclick = () => {
-    let diffPitch = (currentPitch - targetPitch).toFixed(1);
-    let diffAzimuth = ((currentAzimuth - targetAzimuth + 540) % 360 - 180).toFixed(1);
-    let pitchSym = Math.abs(diffPitch) <= tolPitch ? "✓" : (diffPitch > 0 ? "▲" : "▼");
-    let aziSym = Math.abs(diffAzimuth) <= tolAzi ? "✓" : (diffAzimuth > 0 ? "->" : "<-");
+    let diffX = (currentX - targetX).toFixed(1);
+    let diffY = (currentY - targetY).toFixed(1);
+    let diffZ = ((currentZ - targetZ + 540) % 360 - 180).toFixed(1);
 
-    addLog(`DISPARO: Elev: ${pitchSym} ${Math.abs(diffPitch)}° | Azim: ${aziSym} ${Math.abs(diffAzimuth)}°`);
+    let symTextX = Math.abs(diffX) <= tolX ? "✓" : (diffX > 0 ? "▲" : "▼");
+    let symTextY = Math.abs(diffY) <= tolY ? "✓" : (diffY > 0 ? "->" : "<-");
+    let symTextZ = Math.abs(diffZ) <= tolZ ? "✓" : (diffZ > 0 ? "->" : "<-");
+
+    addLog(`DISPARO: Elev(X): ${symTextX}${Math.abs(diffX)}° | Cant(Y): ${symTextY}${Math.abs(diffY)}° | Azim(Z): ${symTextZ}${Math.abs(diffZ)}°`);
     if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
   };
 
