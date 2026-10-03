@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Tolerancias Independientes</title>
+  <title>Nivelador de Carabina - Diales Separados</title>
   <style>
     :root {
       --bg: #121212;
@@ -43,54 +43,93 @@
       font-size: 0.8rem;
       font-family: monospace;
     }
-    .diag-title { font-weight: bold; color: var(--warning); margin-bottom: 6px; font-size: 0.85rem; }
-    .diag-item { display: flex; justify-content: space-between; margin-bottom: 4px; border-bottom: 1px solid #282828; padding-bottom: 2px; }
+    .diag-title { font-weight: bold; color: var(--warning); margin-bottom: 4px; font-size: 0.85rem; }
+    .diag-item { display: flex; justify-content: space-between; margin-bottom: 2px; }
     .status-ok { color: var(--primary); font-weight: bold; }
     .status-bad { color: var(--danger); font-weight: bold; }
 
-    /* Nivel Visual Circular Central */
-    .level-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 10px 0;
+    /* DIAL 1: Brújula Semi-Circular (Azimut 180°) */
+    .gauge-title {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: var(--subtext);
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 6px;
     }
-    .target-circle {
-      width: 200px;
-      height: 200px;
-      border-radius: 50%;
-      border: 3px solid var(--primary);
-      position: relative;
-      background: radial-gradient(circle, #222 0%, #111 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: border-color 0.2s;
-    }
-    .crosshair-h {
-      position: absolute;
+    .compass-gauge {
       width: 100%;
-      height: 1px;
-      background: rgba(255, 255, 255, 0.2);
+      height: 120px;
+      position: relative;
+      background: #151515;
+      border-radius: 120px 120px 0 0;
+      border: 2px solid var(--border);
+      border-bottom: none;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
     }
-    .crosshair-v {
+    .downrange-label {
       position: absolute;
-      height: 100%;
-      width: 1px;
-      background: rgba(255, 255, 255, 0.2);
+      top: 10px;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: var(--primary);
+      letter-spacing: 1px;
     }
-    .bubble {
-      width: 24px;
-      height: 24px;
+    .compass-needle {
+      position: absolute;
+      bottom: 0;
+      width: 4px;
+      height: 90px;
+      background: var(--danger);
+      transform-origin: bottom center;
+      transition: transform 0.05s ease-out;
+      border-radius: 2px;
+    }
+    .compass-center {
+      position: absolute;
+      bottom: -10px;
+      width: 20px;
+      height: 20px;
+      background: #fff;
       border-radius: 50%;
-      background-color: var(--primary);
+    }
+
+    /* DIAL 2: Nivel Torpedo Horizontal (Elevación/Roll) */
+    .torpedo-level {
+      width: 100%;
+      height: 40px;
+      background: #151515;
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .torpedo-center-ring {
       position: absolute;
-      box-shadow: 0 0 10px var(--primary);
+      width: 50px;
+      height: 100%;
+      border-left: 2px dashed var(--warning);
+      border-right: 2px dashed var(--warning);
+      background: rgba(255, 214, 0, 0.05);
+    }
+    .torpedo-bubble {
+      width: 32px;
+      height: 28px;
+      background: var(--primary);
+      border-radius: 14px;
+      position: absolute;
+      box-shadow: 0 0 12px var(--primary);
       transition: transform 0.05s ease-out, background-color 0.2s;
     }
 
-    /* Punteros e Indicadores Visuales */
+    /* Indicadores y Punteros */
     .pointer-display {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -104,13 +143,12 @@
       padding: 8px;
       text-align: center;
     }
-    .pointer-label { font-size: 0.75rem; color: var(--subtext); text-transform: uppercase; }
-    .pointer-symbol { font-size: 1.6rem; font-weight: bold; margin: 2px 0; color: var(--primary); }
+    .pointer-symbol { font-size: 1.5rem; font-weight: bold; margin: 2px 0; color: var(--primary); }
     .pointer-value { font-size: 0.85rem; font-weight: bold; }
     .out-range { color: var(--danger) !important; }
     .in-range { color: var(--primary) !important; }
 
-    /* Botones y Parámetros */
+    /* Botones e Inputs */
     .btn-group { display: flex; gap: 8px; }
     button {
       flex: 1;
@@ -141,7 +179,7 @@
 
     /* Logs */
     .log-container {
-      max-height: 140px;
+      max-height: 130px;
       overflow-y: auto;
       background: #121212;
       border: 1px solid var(--border);
@@ -158,42 +196,47 @@
 <div class="container">
   <h1>Nivelador de Carabina</h1>
 
-  <!-- PANEL DE DIAGNÓSTICO -->
+  <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 ESTADO DEL SENSOR</div>
-    <div class="diag-item"><span>Protocolo HTTPS:</span><span id="diag-protocol">-</span></div>
-    <div class="diag-item"><span>Estado Sensores:</span><span id="diag-permission">-</span></div>
-    <div class="diag-item"><span>Eventos Recibidos:</span><span id="diag-count">0</span></div>
+    <div class="diag-title">🔍 DIAGNÓSTICO</div>
+    <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
+    <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
 
-  <!-- NIVEL EN EL CENTRO -->
+  <!-- DIAL 1: BRÚJULA AZIMUT (180°) -->
   <div class="card">
-    <div class="level-container">
-      <div id="target-circle" class="target-circle">
-        <div class="crosshair-h"></div>
-        <div class="crosshair-v"></div>
-        <div id="bubble" class="bubble"></div>
-      </div>
+    <div class="gauge-title">1. Desviación Acimutal (Rumbo / Downrange)</div>
+    <div class="compass-gauge">
+      <div class="downrange-label">▲ DOWNRANGE (0°)</div>
+      <div id="compass-needle" class="compass-needle"></div>
+      <div class="compass-center"></div>
     </div>
 
-    <!-- PUNTEROS DE DESVIACIÓN -->
+    <!-- DIAL 2: NIVEL TORPEDO (ELEVACIÓN / CANTEO) -->
+    <div class="gauge-title" style="margin-top: 14px;">2. Inclinación / Elevación (Nivel Torpedo)</div>
+    <div class="torpedo-level">
+      <div class="torpedo-center-ring"></div>
+      <div id="torpedo-bubble" class="torpedo-bubble"></div>
+    </div>
+
+    <!-- PUNTEROS Y SÍMBOLOS -->
     <div class="pointer-display">
       <div class="pointer-box">
-        <div class="pointer-label">Canteo (Roll)</div>
+        <div style="font-size:0.7rem; color:var(--subtext);">CANTEO/ELEV.</div>
         <div id="sym-roll" class="pointer-symbol">✓</div>
         <div id="val-roll" class="pointer-value in-range">0.0°</div>
       </div>
       <div class="pointer-box">
-        <div class="pointer-label">Azimut / Rumbo</div>
+        <div style="font-size:0.7rem; color:var(--subtext);">AZIMUT/DOWNRANGE</div>
         <div id="sym-azimuth" class="pointer-symbol">✓</div>
         <div id="val-azimuth" class="pointer-value in-range">0.0°</div>
       </div>
     </div>
   </div>
 
-  <!-- CONTROLES Y TOLERANCIAS INDEPENDIENTES -->
+  <!-- CONTROLES Y PARÁMETROS -->
   <div class="card" style="display:flex; flex-direction:column; gap:10px;">
-    <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO</button>
+    <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (DOWNRANGE)</button>
     
     <div class="btn-group">
       <button id="btn-audio" class="btn-sec">🔊 Alerta: OFF</button>
@@ -202,21 +245,21 @@
 
     <div class="input-col">
       <div class="input-row">
-        <label for="tol-roll-input">Tol. Canteo/Elevación (± Grados):</label>
+        <label for="tol-roll-input">Tol. Elevación (± Grados):</label>
         <input type="number" id="tol-roll-input" value="15.0" step="0.5" min="0.1" max="90">
       </div>
       <div class="input-row">
-        <label for="tol-azi-input">Tol. Azimut / Rumbo (± Grados):</label>
-        <input type="number" id="tol-azi-input" value="45.0" step="0.5" min="0.1" max="180">
+        <label for="tol-azi-input">Tol. Acimut (± Grados):</label>
+        <input type="number" id="tol-azi-input" value="45.0" step="0.5" min="0.1" max="90">
       </div>
     </div>
   </div>
 
-  <!-- REGISTRO Y LOGS -->
+  <!-- HISTORIAL / LOGS -->
   <div class="card" style="display:flex; flex-direction:column; gap:8px;">
     <button id="btn-log-shot">🎯 REGISTRAR DISPARO EN LOG</button>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-      <span style="font-size:0.8rem; color:var(--subtext);">Historial de Desviaciones:</span>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
+      <span style="font-size:0.75rem; color:var(--subtext);">Historial:</span>
       <div>
         <button id="btn-copy-log" style="padding:4px 8px; font-size:0.75rem;" class="btn-sec">Copiar</button>
         <button id="btn-clear-log" style="padding:4px 8px; font-size:0.75rem;" class="btn-sec">Limpiar</button>
@@ -241,8 +284,8 @@
   let tolRoll = 15.0;
   let tolAzi = 45.0;
 
-  const targetCircle = document.getElementById('target-circle');
-  const bubble = document.getElementById('bubble');
+  const compassNeedle = document.getElementById('compass-needle');
+  const torpedoBubble = document.getElementById('torpedo-bubble');
   const symRoll = document.getElementById('sym-roll');
   const valRoll = document.getElementById('val-roll');
   const symAzimuth = document.getElementById('sym-azimuth');
@@ -261,8 +304,8 @@
   function init() {
     const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
     document.getElementById('diag-protocol').innerHTML = isHttps 
-      ? '<span class="status-ok">HTTPS ACTIVO</span>' 
-      : '<span class="status-bad">REQUIERE HTTPS</span>';
+      ? '<span class="status-ok">HTTPS OK</span>' 
+      : '<span class="status-bad">SÓLO HTTPS</span>';
 
     if ('ondeviceorientationabsolute' in window) {
       window.addEventListener('deviceorientationabsolute', handleOrientation, true);
@@ -274,7 +317,6 @@
   function handleOrientation(e) {
     eventCount++;
     document.getElementById('diag-count').innerText = eventCount;
-    document.getElementById('diag-permission').innerHTML = '<span class="status-ok">OK</span>';
 
     if (e.gamma !== null) currentRoll = e.gamma;
     if (e.webkitCompassHeading) {
@@ -293,29 +335,31 @@
     let diffRoll = currentRoll - targetRoll;
     let diffAzimuth = (currentAzimuth - targetAzimuth + 540) % 360 - 180;
 
-    // Escalar la burbuja según las tolerancias configuradas
-    let clampX = Math.max(-80, Math.min(80, (diffRoll / tolRoll) * 40));
-    let clampY = Math.max(-80, Math.min(80, (diffAzimuth / tolAzi) * 40));
-    bubble.style.transform = `translate(${clampX}px, ${clampY}px)`;
+    // 1. DIAL ACIMUT: Mover Aguja (-90° a +90°)
+    let clampAziAngle = Math.max(-90, Math.min(90, diffAzimuth));
+    compassNeedle.style.transform = `rotate(${clampAziAngle}deg)`;
 
+    // 2. DIAL TORPEDO: Mover Burbuja Horizontalmente
+    let clampRollPos = Math.max(-140, Math.min(140, (diffRoll / tolRoll) * 50));
+    torpedoBubble.style.transform = `translateX(${clampRollPos}px)`;
+
+    // Evaluación de rangos
     let isRollOk = Math.abs(diffRoll) <= tolRoll;
     let isAziOk = Math.abs(diffAzimuth) <= tolAzi;
     let isOverallOk = isRollOk && isAziOk;
 
-    if (isOverallOk) {
-      targetCircle.style.borderColor = 'var(--primary)';
-      bubble.style.backgroundColor = 'var(--primary)';
-    } else {
-      targetCircle.style.borderColor = 'var(--danger)';
-      bubble.style.backgroundColor = 'var(--danger)';
-    }
+    // Colores
+    compassNeedle.style.background = isAziOk ? 'var(--primary)' : 'var(--danger)';
+    torpedoBubble.style.backgroundColor = isRollOk ? 'var(--primary)' : 'var(--danger)';
 
+    // Indicador Canteo
     let rollSym = isRollOk ? "✓" : (diffRoll > 0 ? "->" : "<-");
     symRoll.innerText = rollSym;
     symRoll.className = `pointer-symbol ${isRollOk ? 'in-range' : 'out-range'}`;
     valRoll.innerText = `${Math.abs(diffRoll).toFixed(1)}° ${rollSym}`;
     valRoll.className = `pointer-value ${isRollOk ? 'in-range' : 'out-range'}`;
 
+    // Indicador Acimut
     let aziSym = isAziOk ? "✓" : (diffAzimuth > 0 ? "v" : "^");
     symAzimuth.innerText = aziSym;
     symAzimuth.className = `pointer-symbol ${isAziOk ? 'in-range' : 'out-range'}`;
