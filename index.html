@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Brújula Integrada</title>
+  <title>Nivelador de Carabina - Detección de Disparo</title>
   <style>
     :root {
       --bg: #121212;
@@ -56,7 +56,7 @@
       align-items: center;
     }
 
-    /* EJE X: Nivel Torpedo Vertical (Elevación) */
+    /* EJE X: Nivel Torpedo Vertical */
     .torpedo-v-container {
       grid-column: 1;
       grid-row: 1;
@@ -89,7 +89,7 @@
       transition: transform 0.05s ease-out, background-color 0.2s;
     }
 
-    /* EJE Z: Brújula Semi-Circular (Azimut / Downrange) */
+    /* EJE Z: Brújula Semi-Circular */
     .compass-container {
       grid-column: 2;
       grid-row: 1;
@@ -132,7 +132,7 @@
       border-radius: 50%;
     }
 
-    /* EJE Y: Nivel Torpedo Horizontal (Canteo / Lateral) */
+    /* EJE Y: Nivel Torpedo Horizontal */
     .torpedo-h-container {
       grid-column: 1 / span 2;
       grid-row: 2;
@@ -200,6 +200,32 @@
     button.btn-sec { background-color: #333; color: var(--text); border: 1px solid var(--border); }
     button.btn-warn { background-color: var(--warning); color: #000; }
 
+    select {
+      width: 100%;
+      padding: 8px;
+      background: #282828;
+      border: 1px solid var(--border);
+      color: #fff;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+    }
+
+    .mic-meter-bg {
+      width: 100%;
+      height: 8px;
+      background: #151515;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .mic-meter-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--primary);
+      transition: width 0.05s linear;
+    }
+
     .input-col { display: flex; flex-direction: column; gap: 6px; }
     .input-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
     input[type="number"] {
@@ -234,7 +260,7 @@
 
   <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 MODO BRÚJULA NATIVA (RUMBO)</div>
+    <div class="diag-title">🔍 DETECCIÓN AUTOMÁTICA DE DISPARO</div>
     <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
     <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
@@ -282,7 +308,7 @@
     </div>
   </div>
 
-  <!-- PARÁMETROS -->
+  <!-- PARÁMETROS Y CAPTURA MANOS LIBRES -->
   <div class="card" style="display:flex; flex-direction:column; gap:8px;">
     <button id="btn-calibrate" class="btn-warn">1. CALIBRAR CERO (DOWNRANGE)</button>
     
@@ -291,7 +317,27 @@
       <button id="btn-wakelock" class="btn-sec">📱 Pantalla ON</button>
     </div>
 
-    <div class="input-col">
+    <div style="margin-top: 4px;">
+      <label style="font-size:0.8rem; color:var(--subtext); font-weight:bold;">Modo Registro de Disparo:</label>
+      <select id="select-trigger-mode" style="margin-top:4px;">
+        <option value="manual">Touch Manual (Botón)</option>
+        <option value="audio_peak">Micrófono: Pico de Sonido (Click/Percutor)</option>
+        <option value="voice">Voz: Comando ("Fuego" / "Ya")</option>
+      </select>
+    </div>
+
+    <!-- MEDIDOR DE NIPEL DE MICRÓFONO -->
+    <div id="mic-config-box" style="display:none; margin-top:2px;">
+      <div class="input-row">
+        <label for="input-mic-thresh">Umbral Sonoro Disparo:</label>
+        <input type="number" id="input-mic-thresh" value="65" min="10" max="100">
+      </div>
+      <div class="mic-meter-bg">
+        <div id="mic-meter-fill" class="mic-meter-fill"></div>
+      </div>
+    </div>
+
+    <div class="input-col" style="margin-top:4px;">
       <div class="input-row">
         <label for="tol-x-input">Tol. Eje X (Elevación ±°):</label>
         <input type="number" id="tol-x-input" value="15.0" step="0.5">
@@ -330,15 +376,22 @@
 
   let targetX = 0;
   let targetY = 0;
-  let targetZ = 0; // Rumbo magnético de referencia (0° relativo)
+  let targetZ = 0;
 
   let currentX = 0;
   let currentY = 0;
-  let currentZ = 0; // Rumbo magnético bruto (0-360°)
+  let currentZ = 0;
 
   let tolX = 15.0;
   let tolZ = 45.0;
   let tolY = 5.0;
+
+  // Audio Peak Detection & Voice Variables
+  let micStream = null;
+  let audioAnalyser = null;
+  let micDataArray = null;
+  let lastShotTime = 0;
+  let speechRecognizer = null;
 
   const bubbleV = document.getElementById('bubble-v');
   const bubbleH = document.getElementById('bubble-h');
@@ -359,6 +412,11 @@
   const btnCopyLog = document.getElementById('btn-copy-log');
   const btnClearLog = document.getElementById('btn-clear-log');
 
+  const selectTriggerMode = document.getElementById('select-trigger-mode');
+  const micConfigBox = document.getElementById('mic-config-box');
+  const inputMicThresh = document.getElementById('input-mic-thresh');
+  const micMeterFill = document.getElementById('mic-meter-fill');
+
   const tolXInput = document.getElementById('tol-x-input');
   const tolZInput = document.getElementById('tol-z-input');
   const tolYInput = document.getElementById('tol-y-input');
@@ -370,7 +428,6 @@
       ? '<span class="status-ok">HTTPS OK</span>' 
       : '<span class="status-bad">REQUIERE HTTPS</span>';
 
-    // Priorizar API de Brújula Absoluta para lectura de Heading nativo
     if ('ondeviceorientationabsolute' in window) {
       window.addEventListener('deviceorientationabsolute', handleOrientation, true);
     } else if ('DeviceOrientationEvent' in window) {
@@ -385,11 +442,10 @@
     currentX = e.beta || 0;
     currentY = e.gamma || 0;
 
-    // Lectura nativa de brújula plana (Heading)
     if (e.webkitCompassHeading) {
       currentZ = e.webkitCompassHeading;
     } else if (e.alpha !== null) {
-      currentZ = 360 - e.alpha; // Normalización estándar Android
+      currentZ = 360 - e.alpha;
     }
 
     updateUI();
@@ -402,32 +458,25 @@
 
     let diffX = currentX - targetX;
     let diffY = currentY - targetY;
-    
-    // Cálculo de desviación acimutal angular (-180° a +180°)
     let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
-    // 1. EJE X (Elevación)
     let normalizedX = Math.max(-90, Math.min(90, diffX));
     let posX = (-normalizedX / 90) * 50; 
     bubbleV.style.transform = `translateY(${posX}px)`;
 
-    // 2. EJE Z (Brújula Azimut) -> Mapeo Proporcional a la Tolerancia Maxima
-    let scaledZAngle = (diffZ / tolZ) * 45; // 45° visual = Límite de tolerancia
+    let scaledZAngle = (diffZ / tolZ) * 45;
     let clampZAngle = Math.max(-88, Math.min(88, scaledZAngle));
     compassNeedle.style.transform = `rotate(${clampZAngle}deg)`;
 
-    // 3. EJE Y (Canteo)
     let normalizedY = Math.max(-90, Math.min(90, diffY));
     let posY = (-normalizedY / 90) * 130;
     bubbleH.style.transform = `translateX(${posY}px)`;
 
-    // Evaluaciones de estado / alerta
     let isXOk = Math.abs(diffX) <= tolX;
     let isZOk = Math.abs(diffZ) <= tolZ;
     let isYOk = Math.abs(diffY) <= tolY;
     let isOverallOk = isXOk && isZOk && isYOk;
 
-    // Estilos de Alerta Visual para el Azimut
     if (isZOk) {
       compassNeedle.style.backgroundColor = 'var(--primary)';
       compassBox.style.borderColor = 'var(--border)';
@@ -439,7 +488,6 @@
     bubbleV.style.backgroundColor = isXOk ? 'var(--primary)' : 'var(--danger)';
     bubbleH.style.backgroundColor = isYOk ? 'var(--primary)' : 'var(--danger)';
 
-    // Punteros
     let symXTxt = isXOk ? "✓" : (diffX > 0 ? "▲" : "▼");
     symX.innerText = symXTxt;
     symX.className = `pointer-symbol ${isXOk ? 'in-range' : 'out-range'}`;
@@ -455,7 +503,6 @@
     symY.className = `pointer-symbol ${isYOk ? 'in-range' : 'out-range'}`;
     valY.innerText = `${Math.abs(diffY).toFixed(1)}° ${symYTxt}`;
 
-    // Alarma Sonora
     if (audioEnabled && !isOverallOk) {
       playBeep();
     }
@@ -475,12 +522,130 @@
     osc.stop(audioCtx.currentTime + 0.08);
   }
 
+  // --- LOGICA DE CAPTURA DE MICRÓFONO Y VOZ ---
+  selectTriggerMode.onchange = async () => {
+    let mode = selectTriggerMode.value;
+    stopMicListening();
+    stopVoiceRecognition();
+
+    if (mode === 'audio_peak') {
+      micConfigBox.style.display = 'block';
+      startMicListening();
+    } else if (mode === 'voice') {
+      micConfigBox.style.display = 'none';
+      startVoiceRecognition();
+    } else {
+      micConfigBox.style.display = 'none';
+    }
+  };
+
+  async function startMicListening() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      let context = new (window.AudioContext || window.webkitAudioContext)();
+      let source = context.createMediaStreamSource(micStream);
+      audioAnalyser = context.createAnalyser();
+      audioAnalyser.fftSize = 256;
+      source.connect(audioAnalyser);
+
+      micDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+      processAudioPeak();
+    } catch (err) {
+      alert("No se pudo acceder al micrófono.");
+      selectTriggerMode.value = 'manual';
+      micConfigBox.style.display = 'none';
+    }
+  }
+
+  function processAudioPeak() {
+    if (!audioAnalyser || selectTriggerMode.value !== 'audio_peak') return;
+
+    audioAnalyser.getByteFrequencyData(micDataArray);
+    let maxVolume = 0;
+    for (let i = 0; i < micDataArray.length; i++) {
+      if (micDataArray[i] > maxVolume) maxVolume = micDataArray[i];
+    }
+
+    // Normalizar a porcentaje
+    let volPercent = Math.min(100, Math.round((maxVolume / 255) * 100));
+    micMeterFill.style.width = `${volPercent}%`;
+
+    let threshold = parseInt(inputMicThresh.value) || 65;
+    let now = Date.now();
+
+    // Detección de disparo por pico con cooldown de 1.5s
+    if (volPercent >= threshold && (now - lastShotTime > 1500)) {
+      lastShotTime = now;
+      recordShot("MIC");
+    }
+
+    requestAnimationFrame(processAudioPeak);
+  }
+
+  function stopMicListening() {
+    if (micStream) {
+      micStream.getTracks().forEach(track => track.stop());
+      micStream = null;
+    }
+    audioAnalyser = null;
+  }
+
+  function startVoiceRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Tu navegador no soporta reconocimiento de voz nativo.");
+      selectTriggerMode.value = 'manual';
+      return;
+    }
+
+    speechRecognizer = new SpeechRecognition();
+    speechRecognizer.lang = 'es-AR';
+    speechRecognizer.continuous = true;
+    speechRecognizer.interimResults = false;
+
+    speechRecognizer.onresult = (event) => {
+      let lastResultIndex = event.results.length - 1;
+      let text = event.results[lastResultIndex][0].transcript.trim().toLowerCase();
+      
+      if (text.includes("fuego") || text.includes("ya") || text.includes("disparo") || text.includes("shot")) {
+        recordShot("VOZ");
+      }
+    };
+
+    speechRecognizer.onend = () => {
+      if (selectTriggerMode.value === 'voice') {
+        speechRecognizer.start(); // Mantener escuchando en bucle
+      }
+    };
+
+    speechRecognizer.start();
+  }
+
+  function stopVoiceRecognition() {
+    if (speechRecognizer) {
+      speechRecognizer.stop();
+      speechRecognizer = null;
+    }
+  }
+
+  // --- REGISTRO DE DISPAROS ---
+  function recordShot(sourceLabel = "MANUAL") {
+    let diffX = (currentX - targetX).toFixed(1);
+    let diffY = (currentY - targetY).toFixed(1);
+    let diffZ = ((currentZ - targetZ + 540) % 360 - 180).toFixed(1);
+
+    addLog(`[${sourceLabel}] X:${diffX}° | Z:${diffZ}° | Y:${diffY}°`);
+    if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
+  }
+
+  btnLogShot.onclick = () => recordShot("MANUAL");
+
   btnCalibrate.onclick = () => {
     targetX = currentX;
     targetY = currentY;
-    targetZ = currentZ; // Guarda el rumbo brújula actual como Cero
+    targetZ = currentZ;
     if (navigator.vibrate) navigator.vibrate(100);
-    addLog(`[CALIBRACIÓN] Rumbo Cero fijado`);
+    addLog(`[CALIBRACIÓN] Cero fijado`);
   };
 
   btnAudio.onclick = () => {
@@ -509,15 +674,6 @@
     div.innerHTML = `<span>${new Date().toLocaleTimeString()}</span> <b>${msg}</b>`;
     logList.prepend(div);
   }
-
-  btnLogShot.onclick = () => {
-    let diffX = (currentX - targetX).toFixed(1);
-    let diffY = (currentY - targetY).toFixed(1);
-    let diffZ = ((currentZ - targetZ + 540) % 360 - 180).toFixed(1);
-
-    addLog(`SHOT: X:${diffX}° | Z:${diffZ}° | Y:${diffY}°`);
-    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-  };
 
   btnClearLog.onclick = () => {
     logList.innerHTML = '<div style="color:var(--subtext); text-align:center;">Esperando disparos...</div>';
