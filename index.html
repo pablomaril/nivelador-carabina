@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Ajuste de Burbujas 90°</title>
+  <title>Nivelador de Carabina - Brújula Integrada</title>
   <style>
     :root {
       --bg: #121212;
@@ -103,6 +103,7 @@
       justify-content: center;
       align-items: flex-end;
       overflow: hidden;
+      transition: border-color 0.2s;
     }
     .downrange-label {
       position: absolute;
@@ -117,9 +118,9 @@
       bottom: 0;
       width: 4px;
       height: 105px;
-      background: var(--danger);
+      background: var(--primary);
       transform-origin: bottom center;
-      transition: transform 0.08s ease-out;
+      transition: transform 0.08s ease-out, background-color 0.2s;
       border-radius: 2px;
     }
     .compass-center {
@@ -233,7 +234,7 @@
 
   <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 AJUSTE DE BURBUJAS (INVERTIDO / 90°)</div>
+    <div class="diag-title">🔍 MODO BRÚJULA NATIVA (RUMBO)</div>
     <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
     <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
@@ -247,9 +248,9 @@
         <div id="bubble-v" class="bubble-v"></div>
       </div>
 
-      <!-- EJE Z (AZIMUT AZUL) -->
-      <div class="compass-container">
-        <div class="downrange-label">▲ DOWNRANGE (EJE Z)</div>
+      <!-- EJE Z (AZIMUT / BRÚJULA NATIVA) -->
+      <div id="compass-box" class="compass-container">
+        <div class="downrange-label">▲ DOWNRANGE (AZIMUT)</div>
         <div id="compass-needle" class="compass-needle"></div>
         <div class="compass-center"></div>
       </div>
@@ -296,7 +297,7 @@
         <input type="number" id="tol-x-input" value="15.0" step="0.5">
       </div>
       <div class="input-row">
-        <label for="tol-z-input">Tol. Eje Z (Azimut ±°):</label>
+        <label for="tol-z-input">Tol. Eje Z (Azimut Max ±°):</label>
         <input type="number" id="tol-z-input" value="45.0" step="0.5">
       </div>
       <div class="input-row">
@@ -329,11 +330,11 @@
 
   let targetX = 0;
   let targetY = 0;
-  let targetZ = 0;
+  let targetZ = 0; // Rumbo magnético de referencia (0° relativo)
 
   let currentX = 0;
   let currentY = 0;
-  let currentZ = 0;
+  let currentZ = 0; // Rumbo magnético bruto (0-360°)
 
   let tolX = 15.0;
   let tolZ = 45.0;
@@ -341,6 +342,7 @@
 
   const bubbleV = document.getElementById('bubble-v');
   const bubbleH = document.getElementById('bubble-h');
+  const compassBox = document.getElementById('compass-box');
   const compassNeedle = document.getElementById('compass-needle');
 
   const symX = document.getElementById('sym-x');
@@ -368,6 +370,7 @@
       ? '<span class="status-ok">HTTPS OK</span>' 
       : '<span class="status-bad">REQUIERE HTTPS</span>';
 
+    // Priorizar API de Brújula Absoluta para lectura de Heading nativo
     if ('ondeviceorientationabsolute' in window) {
       window.addEventListener('deviceorientationabsolute', handleOrientation, true);
     } else if ('DeviceOrientationEvent' in window) {
@@ -379,24 +382,15 @@
     eventCount++;
     document.getElementById('diag-count').innerText = eventCount;
 
-    let alpha = e.alpha || 0;
-    let beta = e.beta || 0;
-    let gamma = e.gamma || 0;
+    currentX = e.beta || 0;
+    currentY = e.gamma || 0;
 
-    currentX = beta;
-    currentY = gamma;
-
-    let _a = alpha * (Math.PI / 180);
-    let _b = beta * (Math.PI / 180);
-    let _g = gamma * (Math.PI / 180);
-
-    let xH = Math.cos(_a) * Math.cos(_g) + Math.sin(_a) * Math.sin(_b) * Math.sin(_g);
-    let yH = Math.sin(_a) * Math.cos(_b);
-
-    let earthAzimuth = Math.atan2(xH, yH) * (180 / Math.PI);
-    if (earthAzimuth < 0) earthAzimuth += 360;
-
-    currentZ = earthAzimuth;
+    // Lectura nativa de brújula plana (Heading)
+    if (e.webkitCompassHeading) {
+      currentZ = e.webkitCompassHeading;
+    } else if (e.alpha !== null) {
+      currentZ = 360 - e.alpha; // Normalización estándar Android
+    }
 
     updateUI();
   }
@@ -408,34 +402,44 @@
 
     let diffX = currentX - targetX;
     let diffY = currentY - targetY;
+    
+    // Cálculo de desviación acimutal angular (-180° a +180°)
     let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
-    // 1. EJE X (Elevación) -> Sentido opuesto e interpretando max 50px como 90°
+    // 1. EJE X (Elevación)
     let normalizedX = Math.max(-90, Math.min(90, diffX));
     let posX = (-normalizedX / 90) * 50; 
     bubbleV.style.transform = `translateY(${posX}px)`;
 
-    // 2. EJE Z (Azimut) -> Aguja guiada por referencia de tierra
-    let scaledZAngle = (diffZ / tolZ) * 45;
-    let clampZAngle = Math.max(-85, Math.min(85, scaledZAngle));
+    // 2. EJE Z (Brújula Azimut) -> Mapeo Proporcional a la Tolerancia Maxima
+    let scaledZAngle = (diffZ / tolZ) * 45; // 45° visual = Límite de tolerancia
+    let clampZAngle = Math.max(-88, Math.min(88, scaledZAngle));
     compassNeedle.style.transform = `rotate(${clampZAngle}deg)`;
 
-    // 3. EJE Y (Canteo) -> Sentido opuesto e interpretando max 130px como 90°
+    // 3. EJE Y (Canteo)
     let normalizedY = Math.max(-90, Math.min(90, diffY));
     let posY = (-normalizedY / 90) * 130;
     bubbleH.style.transform = `translateX(${posY}px)`;
 
-    // Rangos de tolerancia
+    // Evaluaciones de estado / alerta
     let isXOk = Math.abs(diffX) <= tolX;
     let isZOk = Math.abs(diffZ) <= tolZ;
     let isYOk = Math.abs(diffY) <= tolY;
     let isOverallOk = isXOk && isZOk && isYOk;
 
+    // Estilos de Alerta Visual para el Azimut
+    if (isZOk) {
+      compassNeedle.style.backgroundColor = 'var(--primary)';
+      compassBox.style.borderColor = 'var(--border)';
+    } else {
+      compassNeedle.style.backgroundColor = 'var(--danger)';
+      compassBox.style.borderColor = 'var(--danger)';
+    }
+
     bubbleV.style.backgroundColor = isXOk ? 'var(--primary)' : 'var(--danger)';
-    compassNeedle.style.background = isZOk ? 'var(--primary)' : 'var(--danger)';
     bubbleH.style.backgroundColor = isYOk ? 'var(--primary)' : 'var(--danger)';
 
-    // Formateo de punteros
+    // Punteros
     let symXTxt = isXOk ? "✓" : (diffX > 0 ? "▲" : "▼");
     symX.innerText = symXTxt;
     symX.className = `pointer-symbol ${isXOk ? 'in-range' : 'out-range'}`;
@@ -451,6 +455,7 @@
     symY.className = `pointer-symbol ${isYOk ? 'in-range' : 'out-range'}`;
     valY.innerText = `${Math.abs(diffY).toFixed(1)}° ${symYTxt}`;
 
+    // Alarma Sonora
     if (audioEnabled && !isOverallOk) {
       playBeep();
     }
@@ -473,9 +478,9 @@
   btnCalibrate.onclick = () => {
     targetX = currentX;
     targetY = currentY;
-    targetZ = currentZ;
+    targetZ = currentZ; // Guarda el rumbo brújula actual como Cero
     if (navigator.vibrate) navigator.vibrate(100);
-    addLog(`[CALIBRACIÓN] Cero guardado`);
+    addLog(`[CALIBRACIÓN] Rumbo Cero fijado`);
   };
 
   btnAudio.onclick = () => {
