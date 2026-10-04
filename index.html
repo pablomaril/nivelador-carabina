@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Detección de Disparo</title>
+  <title>Nivelador de Carabina - Aguja Fija Downrange</title>
   <style>
     :root {
       --bg: #121212;
@@ -260,7 +260,7 @@
 
   <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 DETECCIÓN AUTOMÁTICA DE DISPARO</div>
+    <div class="diag-title">🔍 MODO AGUJA FIJA A DOWNRANGE</div>
     <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
     <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
@@ -274,9 +274,9 @@
         <div id="bubble-v" class="bubble-v"></div>
       </div>
 
-      <!-- EJE Z (AZIMUT / BRÚJULA NATIVA) -->
+      <!-- EJE Z (AZIMUT / BRÚJULA TIPO NORTE) -->
       <div id="compass-box" class="compass-container">
-        <div class="downrange-label">▲ DOWNRANGE (AZIMUT)</div>
+        <div class="downrange-label">▲ DOWNRANGE (OBJETIVO)</div>
         <div id="compass-needle" class="compass-needle"></div>
         <div class="compass-center"></div>
       </div>
@@ -326,7 +326,7 @@
       </select>
     </div>
 
-    <!-- MEDIDOR DE NIPEL DE MICRÓFONO -->
+    <!-- MEDIDOR DE NIVEL DE MICRÓFONO -->
     <div id="mic-config-box" style="display:none; margin-top:2px;">
       <div class="input-row">
         <label for="input-mic-thresh">Umbral Sonoro Disparo:</label>
@@ -460,14 +460,18 @@
     let diffY = currentY - targetY;
     let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
+    // 1. EJE X (Elevación)
     let normalizedX = Math.max(-90, Math.min(90, diffX));
     let posX = (-normalizedX / 90) * 50; 
     bubbleV.style.transform = `translateY(${posX}px)`;
 
-    let scaledZAngle = (diffZ / tolZ) * 45;
+    // 2. EJE Z (Brújula / Aguja fija al Downrange)
+    // Se invierte el signo (-diffZ) para que la aguja se mantenga apuntando al objetivo
+    let scaledZAngle = (-diffZ / tolZ) * 45; 
     let clampZAngle = Math.max(-88, Math.min(88, scaledZAngle));
     compassNeedle.style.transform = `rotate(${clampZAngle}deg)`;
 
+    // 3. EJE Y (Canteo)
     let normalizedY = Math.max(-90, Math.min(90, diffY));
     let posY = (-normalizedY / 90) * 130;
     bubbleH.style.transform = `translateX(${posY}px)`;
@@ -522,7 +526,7 @@
     osc.stop(audioCtx.currentTime + 0.08);
   }
 
-  // --- LOGICA DE CAPTURA DE MICRÓFONO Y VOZ ---
+  // LOGICA DE CAPTURA DE MICRÓFONO Y VOZ
   selectTriggerMode.onchange = async () => {
     let mode = selectTriggerMode.value;
     stopMicListening();
@@ -566,14 +570,12 @@
       if (micDataArray[i] > maxVolume) maxVolume = micDataArray[i];
     }
 
-    // Normalizar a porcentaje
     let volPercent = Math.min(100, Math.round((maxVolume / 255) * 100));
     micMeterFill.style.width = `${volPercent}%`;
 
     let threshold = parseInt(inputMicThresh.value) || 65;
     let now = Date.now();
 
-    // Detección de disparo por pico con cooldown de 1.5s
     if (volPercent >= threshold && (now - lastShotTime > 1500)) {
       lastShotTime = now;
       recordShot("MIC");
@@ -614,7 +616,7 @@
 
     speechRecognizer.onend = () => {
       if (selectTriggerMode.value === 'voice') {
-        speechRecognizer.start(); // Mantener escuchando en bucle
+        speechRecognizer.start();
       }
     };
 
@@ -628,7 +630,6 @@
     }
   }
 
-  // --- REGISTRO DE DISPAROS ---
   function recordShot(sourceLabel = "MANUAL") {
     let diffX = (currentX - targetX).toFixed(1);
     let diffY = (currentY - targetY).toFixed(1);
