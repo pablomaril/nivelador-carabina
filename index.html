@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Nivelador de Carabina - Azimut Gravitacional</title>
+  <title>Nivelador de Carabina - Ajuste de Burbujas 90°</title>
   <style>
     :root {
       --bg: #121212;
@@ -233,7 +233,7 @@
 
   <!-- DIAGNÓSTICO -->
   <div class="card diag-panel">
-    <div class="diag-title">🔍 AZIMUT REFERENCIADO AL CENIT</div>
+    <div class="diag-title">🔍 AJUSTE DE BURBUJAS (INVERTIDO / 90°)</div>
     <div class="diag-item"><span>Protocolo:</span><span id="diag-protocol">-</span></div>
     <div class="diag-item"><span>Eventos:</span><span id="diag-count">0</span></div>
   </div>
@@ -247,7 +247,7 @@
         <div id="bubble-v" class="bubble-v"></div>
       </div>
 
-      <!-- EJE Z (AZIMUT AZUL - PROYECCIÓN DE TIERRA / CENIT) -->
+      <!-- EJE Z (AZIMUT AZUL) -->
       <div class="compass-container">
         <div class="downrange-label">▲ DOWNRANGE (EJE Z)</div>
         <div id="compass-needle" class="compass-needle"></div>
@@ -383,16 +383,13 @@
     let beta = e.beta || 0;
     let gamma = e.gamma || 0;
 
-    // 1. CORRECCIÓN DE SENTIDO DE BURBUJAS (Inversión directa)
     currentX = beta;
     currentY = gamma;
 
-    // 2. CÁLCULO DE AZIMUT PROYECTADO SOBRE EL PLANO HORIZONTAL TERRESTRE (CENIT)
     let _a = alpha * (Math.PI / 180);
     let _b = beta * (Math.PI / 180);
     let _g = gamma * (Math.PI / 180);
 
-    // Matriz de inclinación compensada respecto al centro terrestre
     let xH = Math.cos(_a) * Math.cos(_g) + Math.sin(_a) * Math.sin(_b) * Math.sin(_g);
     let yH = Math.sin(_a) * Math.cos(_b);
 
@@ -413,18 +410,20 @@
     let diffY = currentY - targetY;
     let diffZ = (currentZ - targetZ + 540) % 360 - 180;
 
-    // 1. EJE X (Elevación) - Burbuja acompaña el movimiento físico
-    let clampXPos = Math.max(-50, Math.min(50, (diffX / tolX) * 20));
-    bubbleV.style.transform = `translateY(${clampXPos}px)`;
+    // 1. EJE X (Elevación) -> Sentido opuesto e interpretando max 50px como 90°
+    let normalizedX = Math.max(-90, Math.min(90, diffX));
+    let posX = (-normalizedX / 90) * 50; 
+    bubbleV.style.transform = `translateY(${posX}px)`;
 
-    // 2. EJE Z (Azimut) - Aguja guiada por referencia de tierra
+    // 2. EJE Z (Azimut) -> Aguja guiada por referencia de tierra
     let scaledZAngle = (diffZ / tolZ) * 45;
     let clampZAngle = Math.max(-85, Math.min(85, scaledZAngle));
     compassNeedle.style.transform = `rotate(${clampZAngle}deg)`;
 
-    // 3. EJE Y (Canteo) - Burbuja acompaña el movimiento físico
-    let clampYPos = Math.max(-130, Math.min(130, (diffY / tolY) * 40));
-    bubbleH.style.transform = `translateX(${clampYPos}px)`;
+    // 3. EJE Y (Canteo) -> Sentido opuesto e interpretando max 130px como 90°
+    let normalizedY = Math.max(-90, Math.min(90, diffY));
+    let posY = (-normalizedY / 90) * 130;
+    bubbleH.style.transform = `translateX(${posY}px)`;
 
     // Rangos de tolerancia
     let isXOk = Math.abs(diffX) <= tolX;
